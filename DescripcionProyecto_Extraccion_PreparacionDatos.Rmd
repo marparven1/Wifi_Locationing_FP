@@ -1,0 +1,167 @@
+---
+title: "Evaluate Techniques Wifi Locationing"
+author: "Marta Venegas Pardo"
+date: "2/28/2022"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE )
+```
+
+```{r}
+library(dplyr)
+library(kableExtra)
+```
+
+# Descripción del proyecto
+
+## Descripción
+
+Nuestro cliente está desarrollando un sistema que se implementará en grandes campus industriales, en centros comerciales, etc. para ayudar a las personas a navegar por un espacio interior y desconocido sin perderse.
+
+Debemos investigar la posibilidad de usar "huellas dactilares wifi" para determinar la ubicación de una persona en espacios interiores (localización automática).
+
+La toma de huellas dactilares WLAN utiliza las señales de múltiples puntos de acceso wifi dentro del edificio para determinar la ubicación, de manera análoga a cómo el GPS usa las señales satelitales.
+
+La localización automática de usuarios consiste en estimar la posición del usuario (latitud, longitud y altitud) mediante el uso de un dispositivo electrónico, normalmente un teléfono móvil.
+
+Sin embargo, la localización en interiores sigue siendo un problema abierto principalmente debido a la pérdida de señal GPS en entornos interiores. Aunque existen algunas tecnologías y metodologías de posicionamiento en interiores, esta base de datos se centra en las basadas en huellas dactilares WLAN (también conocidas como huellas dactilares WiFi).
+
+## Objetivo: Ubicación en interiores
+
+- El objetivo principal es la determinación de la posición física de una persona en un espacio interior de varios edificios mediante huellas dactilares wifi.
+
+- Targets: las coordenadas (latitud, longitud, piso) y el ID del edificio.
+
+
+## Procedimiento
+
+Se tratará de llevara cabo la localización de las personas mediante la creación de modelos de aprendizaje automático para ver cuál produce el mejor resultado.
+
+Modelos:
+
+- Regresión: latitud y longitud
+- Clasificación: Piso e ID del edificio
+
+
+
+El objetivo es estimar el edificio, el piso y las coordenadas (latitud y longitud) de las 1111 muestras incluidas en el conjunto de validación. Como también se incluyen los valores reales del edificio, planta y coordenadas, es posible determinar el error de localización.
+
+# Lectura y descripción de los datos
+
+## Extracción de los datos
+
+```{r}
+Dat_Entrenamiento <- read.csv2(file = "Data_UJIndoorLoc/trainingData.csv",header = TRUE,sep = ",")
+# Dat_Entrenamiento %>% head()
+# Dat_Entrenamiento %>% str()
+# Dat_Entrenamiento %>% summary()
+
+Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
+Dat_Infor %>% head()
+Dat_Infor %>% str()
+
+Dat_Infor %>% summary()
+```
+
+## Descripción del conjunto de datos
+
+Los datos han sido extraidos de la base de datos UJIIndoorLoc, que cubre tres edificios de la Universitat Jaume I de 4 o más plantas y casi 110.000m2. 
+
+Fue creado en 2013 a través de más de 20 usuarios diferentes y 25 dispositivos Android. 
+
+La base de datos consta de:
+
+- 19937 registros de capacitación/referencia (archivo trainingData.csv)
+- 1111 registros de validación/prueba (archivo validationData.csv)
+
+Los atributos 529 contienen la huella digital WiFi, las coordenadas donde se tomó y otra información útil.
+
+Cada huella dactilar WiFi se puede caracterizar por los puntos de acceso inalámbrico (WAP) detectados y la intensidad de la intensidad de la señal recibida (RSSI) correspondiente. Los valores de intensidad se representan como valores enteros negativos que van desde -104dBm (señal extremadamente pobre) hasta 0dbM. El valor positivo 100 se usa para indicar cuándo no se detectó un WAP. Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, la huella WiFi está compuesta por 520 valores de intensidad.
+También se registra información sobre quién (usuario), cómo (dispositivo y versión de Android) y cuándo (marca temporal) se tomó la captura WiFi.
+
+## Variables incluídas en el dataset
+
+-   WAP001-WAP520: Valor de la intensidad de señal para el punto de acceso inalámbrico ( Wireless Access Points (WAPs)) 1-520.
+
+    -   Rango de valores: -104-0
+    -   Valor 100 indica que la señal no fué detectada
+
+-   Longitude: longitud, variable numérica, con un rango de valores: desde -7695.9387549299299000 hasta -7299.786516730871000
+
+-   Latitude: latitud, variable numérica, con un rango de valores: desde 4864745.7450159714 hasta 4865017.3646842018
+
+-   Floor: Planta dentro del edicio, variable categórica (0-4)
+
+-   BuildingID: Identidicador del edificio. Las medidas han sido tomadas en tres efidicios diferentes. Variable categórica (0-2)
+
+-   SpaceID: Identificador del lugar donde se ha tomado la señal (oficina, pasillo o clase). Variable categórica (1-254)
+
+-   RelativePosition: Posición relativa con respecto al espacio. Variable categórica (1 - dentro, 2 - Fuera, delante de la puerta).
+
+-   UserID: Identificador del usuario. Variable categórica (0-18)
+
+
+-   PhoneID: Identificador del modelo Android. Variable categórica (0-24)
+
+    -   Listado:
+
+        -   0 Celkon A27 4.0.4(6577) 0
+        -   1 GT-I8160 2.3.6 8
+        -   2 GT-I8160 4.1.2 0
+        -   3 GT-I9100 4.0.4 5
+        -   4 GT-I9300 4.1.2 0
+        -   5 GT-I9505 4.2.2 0
+        -   6 GT-S5360 2.3.6 7
+        -   7 GT-S6500 2.3.6 14
+        -   8 Galaxy Nexus 4.2.2 10
+        -   9 Galaxy Nexus 4.3 0
+        -   10 HTC Desire HD 2.3.5 18
+        -   11 HTC One 4.1.2 15
+        -   12 HTC One 4.2.2 0
+        -   13 HTC Wildfire S 2.3.5 0,11
+        -   14 LT22i 4.0.4 0,1,9,16
+        -   15 LT22i 4.1.2 0
+        -   16 LT26i 4.0.4 3
+        -   17 M1005D 4.0.4 13
+        -   18 MT11i 2.3.4 4
+        -   19 Nexus 4 4.2.2 6
+        -   20 Nexus 4 4.3 0
+        -   21 Nexus S 4.1.2 0
+        -   22 Orange Monte Carlo 2.3.5 17
+        -   23 Transformer TF101 4.0.3 2
+        -   24 bq Curie 4.1.1 12
+
+-   Timestamp: Hora en que se tomó la señal
+
+# Preprocesado de datos
+
+## Valores faltantes
+
+Ya nos indicaron en la descripción que no había datos faltantes.
+
+```{r}
+
+```
+
+
+
+## Outliers
+
+## Duplicados
+
+
+## Transformación de variables
+
+Debemos categorizar las variables oportunas, como aquellas correspondientes a ID, posición relativa y planta.
+
+Además, tenemos que transformar la variable Timestamp a formato horario.
+
+
+
+
+
