@@ -53,40 +53,34 @@ El objetivo es estimar el edificio, el piso y las coordenadas (latitud y longitu
 
 # Lectura y descripción de los datos
 
-## Extracción de los datos
-
-```{r}
-Dat_Entrenamiento <- read.csv2(file = "Data_UJIndoorLoc/trainingData.csv",header = TRUE,sep = ",")
-# Dat_Entrenamiento %>% head()
-# Dat_Entrenamiento %>% str()
-# Dat_Entrenamiento %>% summary()
-
-Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
-Dat_Infor %>% head()
-Dat_Infor %>% str()
-
-Dat_Infor %>% summary()
-```
-
 ## Descripción del conjunto de datos
 
-Los datos han sido extraidos de la base de datos UJIIndoorLoc, que cubre tres edificios de la Universitat Jaume I de 4 o más plantas y casi 110.000m2. 
+Los datos han sido extraidos de la base de datos UJIIndoorLoc, que cubre tres edificios de la Universitat Jaume I de 4 o 5 plantas, dependiendo del edificio y casi 110.000m2. 
 
-Fue creado en 2013 a través de más de 20 usuarios diferentes y 25 dispositivos Android. 
+Fue creado en 2013 a través de más de 20 usuarios diferentes y 25 dispositivos Android (algún usuario usó más de un dispositivo). 
+
+Existen 933 puntos de referencia en la base de datos
 
 La base de datos consta de:
 
 - 19937 registros de capacitación/referencia (archivo trainingData.csv)
 - 1111 registros de validación/prueba (archivo validationData.csv)
 
-Los atributos 529 contienen la huella digital WiFi, las coordenadas donde se tomó y otra información útil.
+Cada registro corresponde a una única medición y consta de 529 atributos contienen la huella digital WiFi, las coordenadas donde se tomó y otra información útil.
 
-Cada huella dactilar WiFi se puede caracterizar por los puntos de acceso inalámbrico (WAP) detectados y la intensidad de la intensidad de la señal recibida (RSSI) correspondiente. Los valores de intensidad se representan como valores enteros negativos que van desde -104dBm (señal extremadamente pobre) hasta 0dbM. El valor positivo 100 se usa para indicar cuándo no se detectó un WAP. Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, la huella WiFi está compuesta por 520 valores de intensidad.
+Cada huella dactilar WiFi se puede caracterizar por los puntos de acceso inalámbrico (WAP) detectados y la intensidad de la intensidad de la señal recibida (RSSI) correspondiente. 
+
+Los valores de intensidad se representan como valores enteros negativos que van desde -104dBm (señal extremadamente pobre) hasta 0dbM. 
+
+El valor positivo 100 se usa para indicar cuándo no se detectó un WAP. 
+
+Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, la huella WiFi está compuesta por 520 valores de intensidad.
+
 También se registra información sobre quién (usuario), cómo (dispositivo y versión de Android) y cuándo (marca temporal) se tomó la captura WiFi.
 
 ## Variables incluídas en el dataset
 
--   WAP001-WAP520: Valor de la intensidad de señal para el punto de acceso inalámbrico ( Wireless Access Points (WAPs)) 1-520.
+-   WAP001-WAP520 (RSSI level): Valor de la intensidad de señal para el punto de acceso inalámbrico ( Wireless Access Points (WAPs)) 1-520.
 
     -   Rango de valores: -104-0
     -   Valor 100 indica que la señal no fué detectada
@@ -99,11 +93,18 @@ También se registra información sobre quién (usuario), cómo (dispositivo y v
 
 -   BuildingID: Identidicador del edificio. Las medidas han sido tomadas en tres efidicios diferentes. Variable categórica (0-2)
 
+    -   Listado:
+
+        -   0 ESTCE - TI
+        -   1 ESTCE - TD
+        -   2 ESTCE - TC
+
+
 -   SpaceID: Identificador del lugar donde se ha tomado la señal (oficina, pasillo o clase). Variable categórica (1-254)
 
 -   RelativePosition: Posición relativa con respecto al espacio. Variable categórica (1 - dentro, 2 - Fuera, delante de la puerta).
 
--   UserID: Identificador del usuario. Variable categórica (0-18)
+-   UserID: Identificador del usuario, también encontramos la altura del usuario, ya que puede ser útil porque la posición espacial concreta del dispositivo tiene un impacto directo en los valores RSSI medidos. Variable categórica (0-18)
 
 
 -   PhoneID: Identificador del modelo Android. Variable categórica (0-24)
@@ -136,7 +137,88 @@ También se registra información sobre quién (usuario), cómo (dispositivo y v
         -   23 Transformer TF101 4.0.3 2
         -   24 bq Curie 4.1.1 12
 
--   Timestamp: Hora en que se tomó la señal
+-   Timestamp: Hora en que se tomó la señal. (Unidad: UNIX)
+
+
+
+
+
+## Extracción de los datos
+
+A continuación veremos el primer registro de los datos:
+
+
+```{r}
+Dat_Entrenamiento <- read.csv2(file = "Data_UJIndoorLoc/trainingData.csv",header = TRUE,sep = ",")
+Dat_Validacion <- read.csv2(file = "Data_UJIndoorLoc/validationData.csv",header = TRUE,sep = ",")
+# Dat_Entrenamiento %>% head()
+# Dat_Entrenamiento %>% str()
+# Dat_Entrenamiento %>% summary()
+dim(Dat_Entrenamiento)
+Dat_Entrenamiento[1,-c(2:519)] %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+
+La dimensión de los datos de entrenamiento es  la siguiente: `r dim(Dat_Entrenamiento)` y la de los datos de validación de los modelos: `r dim(Dat_Validacion)`, y ambas tienen las mismas variables
+
+
+
+Número de medidas tomadas por cada usuario:
+
+```{r}
+Df <-data.frame(USERID = 1:18,count =  rep(NA,18)) 
+for (i in Df[,1]) {
+  Df[[i,2]]<-  Dat_Entrenamiento %>% filter(USERID == i ) %>% nrow() 
+}
+Df 
+```
+Número de medidas tomadas por cada teléfono:
+
+```{r}
+Dat_Entrenamiento %>% select(PHONEID ) %>% table()
+```
+
+
+Según la planta:
+
+```{r}
+Dat_Entrenamiento %>% select(FLOOR) %>% table()
+
+```
+
+
+Por edificio:
+
+```{r}
+Dat_Entrenamiento %>% select(BUILDINGID) %>% table()
+```
+
+Claramente en el edificio 2 se han tomado una cantidad de señales superior al resto de edificios.
+
+
+```{r}
+Dat_Entrenamiento %>% select(SPACEID) %>% table()
+```
+
+Según la posición relativa:
+
+
+```{r}
+Dat_Entrenamiento %>% select(RELATIVEPOSITION) %>% table()
+```
+
+
+
+
+
+```{r}
+Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
+Dat_Infor %>% head()
+Dat_Infor %>% str()
+colnames(Dat_Infor)
+Dat_Infor %>% summary()
+```
+
 
 # Preprocesado de datos
 
@@ -144,24 +226,56 @@ También se registra información sobre quién (usuario), cómo (dispositivo y v
 
 Ya nos indicaron en la descripción que no había datos faltantes.
 
-```{r}
-
-```
-
-
-
 ## Outliers
+
+
 
 ## Duplicados
 
 
 ## Transformación de variables
 
+En este apartado, transformaremos las variables para que tengan el formato y/o unidad oportunos para su posteriór estudio.
+
+### Categorización
+
 Debemos categorizar las variables oportunas, como aquellas correspondientes a ID, posición relativa y planta.
+
+```{r}
+Dat_Entrenamiento$FLOOR <- as.factor(Dat_Entrenamiento$FLOOR)
+Dat_Entrenamiento$BUILDINGID<-as.factor(Dat_Entrenamiento$BUILDINGID)
+Dat_Entrenamiento$SPACEID<-as.factor(Dat_Entrenamiento$SPACEID)
+Dat_Entrenamiento$RELATIVEPOSITION<-as.factor(Dat_Entrenamiento$RELATIVEPOSITION)
+Dat_Entrenamiento$USERID<-as.factor(Dat_Entrenamiento$USERID)
+Dat_Entrenamiento$PHONEID<-as.factor(Dat_Entrenamiento$PHONEID)
+```
+
+
+```{r}
+Dat_Entrenamiento[,-c(1:520)] %>% str()
+
+
+Dat_Entrenamiento[,-c(1:520)] %>% summary()
+```
+
+
+### Formato horario
+
 
 Además, tenemos que transformar la variable Timestamp a formato horario.
 
 
 
+```{r}
+# Dat_Entrenamiento$TIMESTAMP<-  as.POSIXct(Dat_Entrenamiento$TIMESTAMP,origin= "1970-01-01")
+```
 
+
+
+# Dat
+
+El dataset es muy grande, por lo que tenemos dos posibles opciones:
+
+* (1) Restringir los modelos a menos edificios, o a edificios individuales
+* (2) Utilizar una muestra aleatoria de los datos
 
