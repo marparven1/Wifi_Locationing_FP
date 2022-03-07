@@ -1,0 +1,108 @@
+---
+title: "Análisis exploratorio"
+author: "Marta Venegas Pardo"
+date: "3/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+# Análisis exploratorio
+
+```{r}
+# remove several unnecessary columns such as User ID, Phone ID and Timestamp.
+```
+
+
+
+El dataset es muy grande, por lo que tenemos dos posibles opciones:
+
+* (1) Restringir los modelos a menos edificios, o a edificios individuales
+* (2) Utilizar una muestra aleatoria de los datos
+
+
+
+
+
+
+
+
+## Info 
+
+
+
+```{r}
+Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
+# Dat_Infor %>% head()
+Dat_Infor %>% str()
+```
+
+
+```{r}
+colnames(Dat_Infor)
+Dat_Infor %>% summary()
+```
+
+
+Número de medidas tomadas por cada usuario:
+
+```{r}
+Df <-data.frame(USERID = 1:18,count =  rep(NA,18)) 
+for (i in Df[,1]) {
+  Df[[i,2]]<-  Dat_Entrenamiento %>% filter(USERID == i ) %>% nrow() 
+}
+Df 
+```
+Número de medidas tomadas por cada teléfono:
+
+```{r}
+Dat_Entrenamiento %>% select(PHONEID ) %>% table()
+```
+
+
+Según la planta:
+
+```{r}
+Dat_Entrenamiento %>% select(FLOOR) %>% table()
+
+```
+
+
+Por edificio:
+
+```{r}
+Dat_Entrenamiento %>% select(BUILDINGID) %>% table()
+```
+
+Claramente en el edificio 2 se han tomado una cantidad de señales superior al resto de edificios.
+
+
+```{r}
+Dat_Entrenamiento %>% select(SPACEID) %>% table()
+```
+
+Según la posición relativa:
+
+
+```{r}
+Dat_Entrenamiento %>% select(RELATIVEPOSITION) %>% table()
+```
+
+
+
+```{r}
+
+# Si para una medición todas las intensidades son la misma, eso indicaría que no tengo cobertura # en ningún WAP, y por tanto esos registros los eliminaremos, ya que no nos aportan información # ninguna.
+# 
+# Si la varianza es 0, eso indica que es constante.
+
+
+# Registros con varianza = 0 
+Var0 <- which ( apply(Dat_Entrenamiento[,1:520], 1, var) == 0 ) # índice del registro donde VAR es 0 
+
+Dat_EntrenamientoII <- Dat_Entrenamiento[-Var0 ,]
+```

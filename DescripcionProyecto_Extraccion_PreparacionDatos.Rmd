@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE )
+knitr::opts_chunk$set(echo = FALSE, message = FALSE , warning = FALSE)
 ```
 
 ```{r}
@@ -21,11 +21,11 @@ library(kableExtra)
 
 ## Descripción
 
-Nuestro cliente está desarrollando un sistema que se implementará en grandes campus industriales, en centros comerciales, etc. para ayudar a las personas a navegar por un espacio interior y desconocido sin perderse.
+El proyecto se centra en el desarrollo de un sistema que se implementará en grandes campus industriales, en centros comerciales,.. con el fin de ayudar a las personas a navegar por un espacio interior y desconocido sin perderse.
 
 Debemos investigar la posibilidad de usar "huellas dactilares wifi" para determinar la ubicación de una persona en espacios interiores (localización automática).
 
-La toma de huellas dactilares WLAN utiliza las señales de múltiples puntos de acceso wifi dentro del edificio para determinar la ubicación, de manera análoga a cómo el GPS usa las señales satelitales.
+La toma de huellas WLAN utiliza las señales de múltiples puntos de acceso wifi dentro del edificio para determinar la ubicación, de manera análoga a cómo el GPS usa las señales satelitales.
 
 La localización automática de usuarios consiste en estimar la posición del usuario (latitud, longitud y altitud) mediante el uso de un dispositivo electrónico, normalmente un teléfono móvil.
 
@@ -33,9 +33,9 @@ Sin embargo, la localización en interiores sigue siendo un problema abierto pri
 
 ## Objetivo: Ubicación en interiores
 
-- El objetivo principal es la determinación de la posición física de una persona en un espacio interior de varios edificios mediante huellas dactilares wifi.
+- El objetivo principal es la determinación de la posición física de una persona en un espacio interior de varios edificios mediante señales wifi.
 
-- Targets: las coordenadas (latitud, longitud, piso) y el ID del edificio.
+- Variables objetivo: aquellas relacionadas con la posición del usuario, es decir, las coordenadas (latitud, longitud, piso) y el ID del edificio.
 
 
 ## Procedimiento
@@ -48,14 +48,14 @@ Modelos:
 - Clasificación: Piso e ID del edificio
 
 
-
 El objetivo es estimar el edificio, el piso y las coordenadas (latitud y longitud) de las 1111 muestras incluidas en el conjunto de validación. Como también se incluyen los valores reales del edificio, planta y coordenadas, es posible determinar el error de localización.
+
 
 # Lectura y descripción de los datos
 
 ## Descripción del conjunto de datos
 
-Los datos han sido extraidos de la base de datos UJIIndoorLoc, que cubre tres edificios de la Universitat Jaume I de 4 o 5 plantas, dependiendo del edificio y casi 110.000m2. 
+Los datos han sido extraidos de la base de datos UJIIndoorLoc, que cubre tres edificios de la Universitat Jaume I en Castellón, Comunidad Valenciana, y éstos tienen 4 o 5 plantas, dependiendo del edificio y casi un total de 110.000m2. 
 
 Fue creado en 2013 a través de más de 20 usuarios diferentes y 25 dispositivos Android (algún usuario usó más de un dispositivo). 
 
@@ -66,30 +66,34 @@ La base de datos consta de:
 - 19937 registros de capacitación/referencia (archivo trainingData.csv)
 - 1111 registros de validación/prueba (archivo validationData.csv)
 
-Cada registro corresponde a una única medición y consta de 529 atributos contienen la huella digital WiFi, las coordenadas donde se tomó y otra información útil.
+Cada registro corresponde a una única medición y consta de 529 atributos contienen la huella digital WiFi WAP, las coordenadas donde se tomó y otra información útil como identificación del usuario o dispositivo móvil utilizado.
 
-Cada huella dactilar WiFi se puede caracterizar por los puntos de acceso inalámbrico (WAP) detectados y la intensidad de la intensidad de la señal recibida (RSSI) correspondiente. 
+Cada huella WiFi se puede caracterizar por los puntos de acceso inalámbrico (WAP) detectados y la intensidad de la señal recibida (RSSI) correspondiente. 
 
-Los valores de intensidad se representan como valores enteros negativos que van desde -104dBm (señal extremadamente pobre) hasta 0dbM. 
+Los valores de intensidad se representan como valores enteros negativos que van desde -104dBm (señal extremadamente pobre) hasta 0dbM. Por tanto, mientras más cercano sea el valor a 0, mejor será la señal.
 
-El valor positivo 100 se usa para indicar cuándo no se detectó un WAP. 
+El valor positivo 100 se ha usado para indicar cuándo no se detectó señal en un WAP concreto, sin embargo, posteriormente transformaremos este valor
 
-Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, la huella WiFi está compuesta por 520 valores de intensidad.
+Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, un registro de huella WiFi está compuesta por 520 valores de intensidad, uno por cada WAP.
 
 También se registra información sobre quién (usuario), cómo (dispositivo y versión de Android) y cuándo (marca temporal) se tomó la captura WiFi.
 
 ## Variables incluídas en el dataset
 
--   WAP001-WAP520 (RSSI level): Valor de la intensidad de señal para el punto de acceso inalámbrico ( Wireless Access Points (WAPs)) 1-520.
+-   WAP001-WAP520 (RSSI level): Valor de la intensidad de señal que llega al móvil desde cada punto de acceso inalámbrico WAP (Wireless Access Points) 1-520.
 
     -   Rango de valores: -104-0
-    -   Valor 100 indica que la señal no fué detectada
+    -   Unidad: decibelio-milivatio dBm. Se trata de una medida logarítmica de portencia en relación a un milivatio.
+    -   Un valor de 100 dBm indica que la señal no fué detectada **
+    -   Un valor a partir de -120 dBm indica que no se ha detectado señal
+    -   Mientras más cercano sea elvalor a 0, mejor será la señal
+    -   Nota: RSSI: Received Signal Strength Indicator
 
 -   Longitude: longitud, variable numérica, con un rango de valores: desde -7695.9387549299299000 hasta -7299.786516730871000
 
 -   Latitude: latitud, variable numérica, con un rango de valores: desde 4864745.7450159714 hasta 4865017.3646842018
 
--   Floor: Planta dentro del edicio, variable categórica (0-4)
+-   Floor: Planta dentro del edificio, variable categórica (0-4)
 
 -   BuildingID: Identidicador del edificio. Las medidas han sido tomadas en tres efidicios diferentes. Variable categórica (0-2)
 
@@ -158,66 +162,11 @@ dim(Dat_Entrenamiento)
 Dat_Entrenamiento[1,-c(2:519)] %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
 ```
 
-
-La dimensión de los datos de entrenamiento es  la siguiente: `r dim(Dat_Entrenamiento)` y la de los datos de validación de los modelos: `r dim(Dat_Validacion)`, y ambas tienen las mismas variables
-
-
-
-Número de medidas tomadas por cada usuario:
-
-```{r}
-Df <-data.frame(USERID = 1:18,count =  rep(NA,18)) 
-for (i in Df[,1]) {
-  Df[[i,2]]<-  Dat_Entrenamiento %>% filter(USERID == i ) %>% nrow() 
-}
-Df 
-```
-Número de medidas tomadas por cada teléfono:
-
-```{r}
-Dat_Entrenamiento %>% select(PHONEID ) %>% table()
-```
-
-
-Según la planta:
-
-```{r}
-Dat_Entrenamiento %>% select(FLOOR) %>% table()
-
-```
-
-
-Por edificio:
-
-```{r}
-Dat_Entrenamiento %>% select(BUILDINGID) %>% table()
-```
-
-Claramente en el edificio 2 se han tomado una cantidad de señales superior al resto de edificios.
-
-
-```{r}
-Dat_Entrenamiento %>% select(SPACEID) %>% table()
-```
-
-Según la posición relativa:
-
-
-```{r}
-Dat_Entrenamiento %>% select(RELATIVEPOSITION) %>% table()
-```
+La dimensión de los datos de entrenamiento, que son los que utilizaremos para tratar de modelar la intensidad de señal es  la siguiente: `r dim(Dat_Entrenamiento)` y la de los datos de validación de los modelos: `r dim(Dat_Validacion)`, y ambas tienen las mismas variables.
 
 
 
 
-
-```{r}
-Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
-Dat_Infor %>% head()
-Dat_Infor %>% str()
-colnames(Dat_Infor)
-Dat_Infor %>% summary()
-```
 
 
 # Preprocesado de datos
@@ -228,34 +177,113 @@ Ya nos indicaron en la descripción que no había datos faltantes.
 
 ## Outliers
 
+## Varianza de la intensidad de señal
+
+El conjunto de datos contiene un gran número de variables, con un total de `r ncol(Dat_Entrenamiento)`. Vamos a prodecer a eliminar aquellas con varianza nula para reducir el número de variables.
+
+Si la varianza de un WAP es nula, eso indicaría que no se pasa por ningún área de influencia de ese WAP. Una varianza nula indicaría que no se trataría de una variable, sino de una constante. En nuestro conjunto de datos, hay un total de `r length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )`  WAPs de los 520 totales donde la varianza es 0, y vamos a proceder a eliminar esos WAPS, ya que no nos aportan información alguna. Esto implicaría que ahora tenemos `r 520 - length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )` variables que miden la intensidad de señal.
+
+
+```{r}
+Dat_EntrenamientoII <- Dat_Entrenamiento[,-which ( apply(Dat_Entrenamiento[,1:520], 2, var) == 0 )  ]
+```
+
+Ahora tenemos un conjunto de dato con las siguientes dimensiones: `r dim(Dat_EntrenamientoII)`.
 
 
 ## Duplicados
 
 
+
+Existen un total de `r length(which(duplicated(Dat_EntrenamientoII[,])))` registros duplicados (idénticos) y supone un `r round( 100*(length(which(duplicated(Dat_EntrenamientoII[,])))/nrow(Dat_EntrenamientoII)),2)` % del total de datos, por lo que al ser un porcentaje tan bajo, las instancias serán eliminadas ya que podrían influir en nuestro análisis y modelado posterior.
+
+Nota: En esta primera fase del tratamiento, hemos considerado que dos o más filas están duplicadas si estaban duplicadas en su totalidad, es decir, dos o más filas filas con los mismos atributos, no solo de identificación, sino también la misma marca temporal e intensidad de señal. Las 529 variables eran idénticas para estos registros.
+
+```{r}
+Dat_EntrenamientoIII<- Dat_EntrenamientoII[-which(duplicated(Dat_EntrenamientoII[,])),]
+```
+
+
+Trás este procedimiento, obtenemos un conjunto de datos con las siguientes dimensiones:  `r dim(Dat_EntrenamientoIII)`
+
+
+A continuación, trás haber procedido a eliminar aquellas filas que estaban duplicadas en su totalidad, vamos a centrarnos en buscar registros duplicados considerando por éstos aquellas instancias que hayan sido registrados por el mismo individuo en la misma fecha (día y hora) y con el mismo teléfono móvil.
+
+
+
+```{r}
+Duplicados <- Dat_EntrenamientoIII[which(duplicated(Dat_EntrenamientoIII[,c("USERID","PHONEID","TIMESTAMP")])) ,] 
+```
+
+
+Encontramos un total de `r dim(Duplicados)[1]` registros tomados por el mismo usuario con el mismo dispositivo y con la misma marca horaria. Esto supone un `r round((dim(Duplicados)[1]*100)/dim(Dat_EntrenamientoIII)[1],2)` % del total de registros, que es un porcentaje alto.
+
+
+Los registros duplicados, y más un número tan elevado respecto del total de número de instancias podrían influir en los resultados de los modelos predictivos que vayamos a construir, y por tanto influiría directamente en el resultado que obtendremos de nuestro análisis.
+
+¿Qué hacer y qué implicaría quitarlos?
+
+
+Vamos a optar por eliminar estos registros duplicados, ya que podrían tratarse de registros erróneos en la toma de datos y que podrían llevarnos a construir modelos predictivos de menor calidad y que no saquen el mayor partido a los datos disponibles.
+
+Eliminar estos registros implica perder información pero ganar consistencia en los datos y por tanto, en los resultados.
+
+```{r}
+Dat_EntrenamientoIV <- 
+Dat_EntrenamientoIII[-which(duplicated(Dat_EntrenamientoIII[,c("USERID","PHONEID","TIMESTAMP")])) ,] 
+```
+
+Por tanto, ahora tenemos un conjunto de datos con las siguientes dimensiones: `r dim(Dat_EntrenamientoIV)`
+
+
+
 ## Transformación de variables
 
-En este apartado, transformaremos las variables para que tengan el formato y/o unidad oportunos para su posteriór estudio.
+En este apartado, transformaremos las variables para que tengan el formato y/o unidad oportunos para su posterior estudio.
 
 ### Categorización
 
 Debemos categorizar las variables oportunas, como aquellas correspondientes a ID, posición relativa y planta.
 
 ```{r}
-Dat_Entrenamiento$FLOOR <- as.factor(Dat_Entrenamiento$FLOOR)
-Dat_Entrenamiento$BUILDINGID<-as.factor(Dat_Entrenamiento$BUILDINGID)
-Dat_Entrenamiento$SPACEID<-as.factor(Dat_Entrenamiento$SPACEID)
-Dat_Entrenamiento$RELATIVEPOSITION<-as.factor(Dat_Entrenamiento$RELATIVEPOSITION)
-Dat_Entrenamiento$USERID<-as.factor(Dat_Entrenamiento$USERID)
-Dat_Entrenamiento$PHONEID<-as.factor(Dat_Entrenamiento$PHONEID)
+Dat_EntrenamientoIV$FLOOR <- as.factor(Dat_EntrenamientoIV$FLOOR)
+Dat_EntrenamientoIV$BUILDINGID<-as.factor(Dat_EntrenamientoIV$BUILDINGID)
+Dat_EntrenamientoIV$SPACEID<-as.factor(Dat_EntrenamientoIV$SPACEID)
+Dat_EntrenamientoIV$RELATIVEPOSITION<-as.factor(Dat_EntrenamientoIV$RELATIVEPOSITION)
+Dat_EntrenamientoIV$USERID<-as.factor(Dat_EntrenamientoIV$USERID)
+Dat_EntrenamientoIV$PHONEID<-as.factor(Dat_EntrenamientoIV$PHONEID)
 ```
 
 
 ```{r}
-Dat_Entrenamiento[,-c(1:520)] %>% str()
+Dat_EntrenamientoIV[,-c(1:465)] %>% str()
+```
 
 
-Dat_Entrenamiento[,-c(1:520)] %>% summary()
+
+
+```{r}
+# Dat_EntrenamientoIV[,-c(1:465)] %>% summary()
+```
+
+
+### Reformateo de la no detección de señal
+
+Nos han indicado que la no cobertura se ha caracterizado en nuestro dataset con un señal de 100 dBm. Como esto no es una situación real, vamos a transformar los registros con que tengan una señal con un valor de 100 dBm a un valor más pequeño que indique que no se ha registrado señal en ese WAP.
+
+El valor de intensidad de señal mínimo registrado ha sido de `r min(apply(Dat_EntrenamientoIV[,1:465], 1, min))` dBm, por tanto, optaremos por considerar que el valor de la no cobertura para la no conexión es de -120 dBm.
+
+
+
+Realizamos la transformación y mostramos unos cuantos registros para su visualización.
+
+```{r}
+for (i in seq_len(465)) {
+ Dat_EntrenamientoIV[,i] =  ifelse(Dat_EntrenamientoIV[,i]==100, -120 , Dat_EntrenamientoIV[,i] )
+}
+
+Dat_EntrenamientoIV[,-c(7:464)] %>% head(3)
+
 ```
 
 
@@ -267,15 +295,38 @@ Además, tenemos que transformar la variable Timestamp a formato horario.
 
 
 ```{r}
-# Dat_Entrenamiento$TIMESTAMP<-  as.POSIXct(Dat_Entrenamiento$TIMESTAMP,origin= "1970-01-01")
+Dat_EntrenamientoIV$TIMESTAMP<-  as.POSIXct(Dat_EntrenamientoIV$TIMESTAMP,origin= "1970-01-01")
+Dat_EntrenamientoIV$TIMESTAMP %>% head()
 ```
 
 
 
-# Dat
 
-El dataset es muy grande, por lo que tenemos dos posibles opciones:
 
-* (1) Restringir los modelos a menos edificios, o a edificios individuales
-* (2) Utilizar una muestra aleatoria de los datos
+
+
+## Conjunto de datos trás el data cleaning
+
+
+A continuación mostraremos el formato de las variables del conjunto de datos final, con unabreve visualización de las mismas
+
+
+```{r}
+Dat_EntrenamientoIV[,-c(2:464)] %>% str()
+```
+
+
+
+```{r}
+DT::datatable(Dat_EntrenamientoIV[,-c(7:464)])
+```
+
+
+Por último, guardamos los datos ya preparados para el análisis en un archivo tipo *.RData* llamado *TrainingDataCleaned.RData*
+
+```{r}
+TrainingDataCleaned<- Dat_EntrenamientoIV
+# save(TrainingDataCleaned,file = "Data_UJIndoorLoc/TrainingDataCleaned.RData")
+```
+
 
