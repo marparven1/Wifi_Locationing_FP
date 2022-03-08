@@ -2,16 +2,22 @@
 title: "Análisis exploratorio"
 author: "Marta Venegas Pardo"
 date: "3/8/2022"
-output: html_document
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE , warning = FALSE)
 ```
 
+```{r}
+library(dplyr)
+library(kableExtra)
+library(ggplot2)
+```
 
-
-# Análisis exploratorio
 
 ```{r}
 # remove several unnecessary columns such as User ID, Phone ID and Timestamp.
@@ -19,19 +25,76 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
-El dataset es muy grande, por lo que tenemos dos posibles opciones:
 
-* (1) Restringir los modelos a menos edificios, o a edificios individuales
-* (2) Utilizar una muestra aleatoria de los datos
-
-
-
-
+```{r ,  lectura de datos}
+load("Data_UJIndoorLoc/TrainingDataCleaned.RData")
+dim(TrainingDataCleaned)
+```
+ 
 
 
 
 
-## Info 
+# Análisis descriptivo
+
+Nuestro conjunto de datos tiene las siguientes dimensiones: `r dim(TrainingDataCleaned)`. De las 474 variables, 464 de ellas corresponden al valor de la intensidad de señal que llega al movil desde cada punto de acceso inalámbrico WAP y las otras 10 variables corresponden a posición desde donde se ha tomado la señal e identificación del usuario y teléfono móvil utilizado.
+
+
+Vamos a mostrar los datos a modo de tabla, pero únicamente mostraremos algunas de las variables WAP, ya que son demasiadas.
+
+
+```{r}
+DT::datatable(TrainingDataCleaned[,-c(7:464)])
+```
+
+
+- Formato de cada variable:
+
+
+```{r}
+TrainingDataCleaned[,-c(1:465)] %>% str()
+```
+
+
+
+
+
+
+En primer lugar, vamos a hacer un breve análisis descriptivo de las variables que no corresponden a las señales WAP.
+
+
+
+```{r}
+TrainingDataCleaned[,-c(1:465)] %>% summary()
+```
+
+
+
+Encontramos 3 edificios y 5 plantas diferentes, pero eso no tiene porque indicar que todos los pisos tengan 5 plantas.
+
+
+
+```{r}
+TrainingDataCleaned %>% select("FLOOR" | "BUILDINGID") %>% table()
+```
+
+En la tabla anterior observamos que el único edificio que tiene 5 plantas es el edificio número 2, y que los edificios 0 y 1 tienen 4 únicamente 5 plantas.
+
+
+
+
+```{r}
+ggplot(data=data.frame(
+  BUILDINGID = 0:2 , 
+  MEDICIONES = colSums(TrainingDataCleaned %>% select("FLOOR" | "BUILDINGID") %>% table())
+), aes(x=BUILDINGID, y=MEDICIONES,fill=BUILDINGID)) + 
+    geom_bar(stat="identity", position="stack") # position=position.stack se puede abreviar con position="stack".
+
+
+```
+
+
+
 
 
 

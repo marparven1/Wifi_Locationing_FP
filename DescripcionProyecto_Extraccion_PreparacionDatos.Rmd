@@ -169,6 +169,7 @@ La dimensión de los datos de entrenamiento, que son los que utilizaremos para t
 
 
 
+
 # Preprocesado de datos
 
 ## Valores faltantes
@@ -299,6 +300,24 @@ Dat_EntrenamientoIV$TIMESTAMP<-  as.POSIXct(Dat_EntrenamientoIV$TIMESTAMP,origin
 Dat_EntrenamientoIV$TIMESTAMP %>% head()
 ```
 
+
+
+
+
+
+
+
+
+
+
+
+### Creación de nuevas variables
+
+Es interesante conocer para cada instancia registrada por un usuario, cual es el WAP que tiene la mayor intensidad de señal.
+
+Por tanto, crearemos dos nuevas variables:
+
+- SeñalMax: WAP con el que se ha registrado una mayor señal
 
 
 
