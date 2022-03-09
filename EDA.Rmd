@@ -91,7 +91,7 @@ TrainingDataCleaned[,-c(1:465)] %>% summary()
 
 ```{r}
 fig <- plot_ly(TrainingDataCleaned, y = ~LATITUDE, x = ~LONGITUDE, z = ~FLOOR, color = ~BUILDINGID)
-fig <- fig %>% add_markers()
+fig <- fig %>% add_markers( size = 20 )
 fig <- fig %>% layout(title = 'Representación de los edificios y plantas del campus',
   scene = list(
                      xaxis = list(title = 'LONGITUD'),
@@ -256,6 +256,9 @@ Conclusión: no todos los usuarios visitan todos los edificios.
 
 
 #### Comentar gráfico
+
+SEPARAR POR EDIFICIO, PLANTAS AISLADAS NO
+
 
 ```{r}
 ggplot(data=TrainingDataCleaned ,

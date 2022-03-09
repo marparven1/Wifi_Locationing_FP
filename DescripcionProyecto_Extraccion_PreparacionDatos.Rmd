@@ -74,7 +74,7 @@ Los valores de intensidad se representan como valores enteros negativos que van 
 
 El valor positivo 100 se ha usado para indicar cuándo no se detectó señal en un WAP concreto, sin embargo, posteriormente transformaremos este valor
 
-Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Así, un registro de huella WiFi está compuesta por 520 valores de intensidad, uno por cada WAP.
+Durante la creación de la base de datos, se detectaron 520 WAP diferentes. Por lo tanto, la huella dactilar WiFi está compuesta por 520 valores de intensidad.
 
 También se registra información sobre quién (usuario), cómo (dispositivo y versión de Android) y cuándo (marca temporal) se tomó la captura WiFi.
 
@@ -156,7 +156,7 @@ A continuación veremos el primer registro de los datos:
 Dat_Entrenamiento <- read.csv2(file = "Data_UJIndoorLoc/trainingData.csv",header = TRUE,sep = ",")
 Dat_Validacion <- read.csv2(file = "Data_UJIndoorLoc/validationData.csv",header = TRUE,sep = ",")
 # Dat_Entrenamiento %>% head()
-# Dat_Entrenamiento %>% str()
+# Dat_Entrenamiento[,-c(2:519)] %>% str()
 # Dat_Entrenamiento %>% summary()
 dim(Dat_Entrenamiento)
 Dat_Entrenamiento[1,-c(2:519)] %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
@@ -180,16 +180,47 @@ Ya nos indicaron en la descripción que no había datos faltantes.
 
 ## Varianza de la intensidad de señal
 
-El conjunto de datos contiene un gran número de variables, con un total de `r ncol(Dat_Entrenamiento)`. Vamos a prodecer a eliminar aquellas con varianza nula para reducir el número de variables.
+El conjunto de datos contiene un gran número de variables, con un total de `r ncol(Dat_Entrenamiento)`. Además, en el conjunto de las 520 variables predictoras, el valor predominante es el de la no detección de señal y esto hará que en muchos casos, la varianza de estas variables sea muy cercana a 0.
 
-Si la varianza de un WAP es nula, eso indicaría que no se pasa por ningún área de influencia de ese WAP. Una varianza nula indicaría que no se trataría de una variable, sino de una constante. En nuestro conjunto de datos, hay un total de `r length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )`  WAPs de los 520 totales donde la varianza es 0, y vamos a proceder a eliminar esos WAPS, ya que no nos aportan información alguna. Esto implicaría que ahora tenemos `r 520 - length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )` variables que miden la intensidad de señal.
+La varianza de 50 de las 520 variables las encontramos a continuación:
+
+```{r}
+apply(Dat_Entrenamiento[,1:520], 2, var) %>% head(100)
+```
+Nos planteamos ahora lo siguiente, ¿cuándo considerar una varianza muy pequeña?
+
+El valor medio de todas las varianzas es de: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% mean()`y los cuantiles: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% quantile()`. Es decir, el valor de la varianza que ha sido superado por el 75% de los WAPS es de 17.73. Podríamos considerar una varianza pequeña si no supera el valor de 10, teniendo así `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  < 10 ))` variables con varianza menor que 10, siendo `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  == 0 ))` de ellas variables con varianza nula.
+
+
+Para aquellas variables donde la varianza es nula (no es una variable, sino una constante) o con un valor menor que el umbral, optaremos por eliminarlas de nuestro conjunto de datos para así reducir el número de variables. Eliminar WAPS es eliminar zonas de *detección*, pero a la hora del modelado hará que tengamos menos errores y por tanto, mayor fiabilidad en las métricas.
+
+
+Si la varianza de un WAP es nula, eso indicaría que no se pasa por ningún área de influencia de ese WAP. Una varianza nula indicaría que no se trataría de una variable, sino de una constante. En nuestro conjunto de datos, hay un total de `r length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )`  WAPs  que tienen varianza 0 de los 520 existentes, y son las siguientes mostradas a continuación:
 
 
 ```{r}
-Dat_EntrenamientoII <- Dat_Entrenamiento[,-which ( apply(Dat_Entrenamiento[,1:520], 2, var) == 0 )  ]
+which ( apply(Dat_Entrenamiento[,1:520], 2, var) == 0 )
+```
+
+
+Esto implicaría que ahora tenemos `r 520 - length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) < 10 ) ) )` variables que miden la intensidad de señal.
+
+
+```{r}
+Dat_EntrenamientoII <- Dat_Entrenamiento[,-which ( apply(Dat_Entrenamiento[,1:520], 2, var) < 10 )  ]
 ```
 
 Ahora tenemos un conjunto de dato con las siguientes dimensiones: `r dim(Dat_EntrenamientoII)`.
+
+
+
+
+
+
+
+
+
+
 
 
 ## Duplicados
@@ -256,15 +287,25 @@ Dat_EntrenamientoIV$PHONEID<-as.factor(Dat_EntrenamientoIV$PHONEID)
 ```
 
 
+
+Las variables latitud y longitud deben tener formato numérico, no de factor.
+
 ```{r}
-Dat_EntrenamientoIV[,-c(1:465)] %>% str()
+Dat_EntrenamientoIV$LATITUDE<-as.numeric(Dat_EntrenamientoIV$LATITUDE)
+Dat_EntrenamientoIV$LONGITUDE<-as.numeric(Dat_EntrenamientoIV$LONGITUDE)
+```
+
+
+
+```{r}
+Dat_EntrenamientoIV[,-c(1:411)] %>% str()
 ```
 
 
 
 
 ```{r}
-# Dat_EntrenamientoIV[,-c(1:465)] %>% summary()
+# Dat_EntrenamientoIV[,-c(1:411)] %>% summary()
 ```
 
 
@@ -272,18 +313,18 @@ Dat_EntrenamientoIV[,-c(1:465)] %>% str()
 
 Nos han indicado que la no cobertura se ha caracterizado en nuestro dataset con un señal de 100 dBm. Como esto no es una situación real, vamos a transformar los registros con que tengan una señal con un valor de 100 dBm a un valor más pequeño que indique que no se ha registrado señal en ese WAP.
 
-El valor de intensidad de señal mínimo registrado ha sido de `r min(apply(Dat_EntrenamientoIV[,1:465], 1, min))` dBm, por tanto, optaremos por considerar que el valor de la no cobertura para la no conexión es de -120 dBm.
+El valor de intensidad de señal mínimo registrado ha sido de `r min(apply(Dat_EntrenamientoIV[,1:411], 1, min))` dBm, por tanto, optaremos por considerar que el valor de la no cobertura para la no conexión es de -120 dBm.
 
 
 
 Realizamos la transformación y mostramos unos cuantos registros para su visualización.
 
 ```{r}
-for (i in seq_len(465)) {
+for (i in seq_len(411)) {
  Dat_EntrenamientoIV[,i] =  ifelse(Dat_EntrenamientoIV[,i]==100, -120 , Dat_EntrenamientoIV[,i] )
 }
 
-Dat_EntrenamientoIV[,-c(7:464)] %>% head(3)
+Dat_EntrenamientoIV[,-c(7:410)] %>% head(3)
 
 ```
 
@@ -327,17 +368,17 @@ Por tanto, crearemos dos nuevas variables:
 ## Conjunto de datos trás el data cleaning
 
 
-A continuación mostraremos el formato de las variables del conjunto de datos final, con unabreve visualización de las mismas
+A continuación mostraremos el formato de las variables del conjunto de datos final, con una breve visualización de las mismas
 
 
 ```{r}
-Dat_EntrenamientoIV[,-c(2:464)] %>% str()
+Dat_EntrenamientoIV[,-c(2:410)] %>% str()
 ```
 
 
 
 ```{r}
-DT::datatable(Dat_EntrenamientoIV[,-c(7:464)])
+DT::datatable(Dat_EntrenamientoIV[,-c(7:409)])
 ```
 
 
@@ -345,7 +386,7 @@ Por último, guardamos los datos ya preparados para el análisis en un archivo t
 
 ```{r}
 TrainingDataCleaned<- Dat_EntrenamientoIV
-# save(TrainingDataCleaned,file = "Data_UJIndoorLoc/TrainingDataCleaned.RData")
+save(TrainingDataCleaned,file = "Data_UJIndoorLoc/TrainingDataCleaned.RData")
 ```
 
 
