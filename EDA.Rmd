@@ -15,7 +15,9 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE , warning = FALSE)
 ```{r}
 library(dplyr)
 library(kableExtra)
+
 library(ggplot2)
+library(plotly)
 ```
 
 
@@ -37,14 +39,18 @@ dim(TrainingDataCleaned)
 
 # Análisis descriptivo
 
+
+
 Nuestro conjunto de datos tiene las siguientes dimensiones: `r dim(TrainingDataCleaned)`. De las 474 variables, 464 de ellas corresponden al valor de la intensidad de señal que llega al movil desde cada punto de acceso inalámbrico WAP y las otras 10 variables corresponden a posición desde donde se ha tomado la señal e identificación del usuario y teléfono móvil utilizado.
 
+
+## Resúmenes descriptivos
 
 Vamos a mostrar los datos a modo de tabla, pero únicamente mostraremos algunas de las variables WAP, ya que son demasiadas.
 
 
 ```{r}
-DT::datatable(TrainingDataCleaned[,-c(7:464)])
+# DT::datatable(TrainingDataCleaned[,-c(7:464)])
 ```
 
 
@@ -69,8 +75,39 @@ TrainingDataCleaned[,-c(1:465)] %>% summary()
 ```
 
 
+## Gráficas
+
+
+
+```{r}
+# pairs(x=~LONGITUDE+LATITUDE+FLOOR+BUILDINGID+SPACEID+RELATIVEPOSITION+USERID+PH# ONEID   ,data=TrainingDataCleaned[,-c(1:465)])
+# 
+# TrainingDataCleaned[,-c(1:465)] %>% colnames()
+```
+
+
+### Visualización del campus 
+
+
+```{r}
+fig <- plot_ly(TrainingDataCleaned, y = ~LATITUDE, x = ~LONGITUDE, z = ~FLOOR, color = ~BUILDINGID)
+fig <- fig %>% add_markers()
+fig <- fig %>% layout(title = 'Representación de los edificios y plantas del campus',
+  scene = list(
+                     xaxis = list(title = 'LONGITUD'),
+                     yaxis=list(title="LATITUD"),
+                     zaxis = list(title = 'PLANTA')),
+   annotations = list(text = 'ID del edificio'))
+
+fig
+```
+
+
+### Análisis de los edificios
 
 Encontramos 3 edificios y 5 plantas diferentes, pero eso no tiene porque indicar que todos los pisos tengan 5 plantas.
+
+Es interesante destacar que la mayoría de mediciones se han tomado en el edificio con identificador 2 y en la posición relativa delante de la puerta, no dentro de las habitaciones.
 
 
 
@@ -88,26 +125,94 @@ ggplot(data=data.frame(
   BUILDINGID = 0:2 , 
   MEDICIONES = colSums(TrainingDataCleaned %>% select("FLOOR" | "BUILDINGID") %>% table())
 ), aes(x=BUILDINGID, y=MEDICIONES,fill=BUILDINGID)) + 
-    geom_bar(stat="identity", position="stack") # position=position.stack se puede abreviar con position="stack".
-
+  scale_y_continuous(breaks = seq(0,7500,by=500) )+
+    geom_bar(stat="identity", position="stack")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en cada edificio")
 
 ```
 
 
-
-
+Vemos como en el edificio 2 es en el que se han tomado mayor número de mediciones y podría ser debido a que es el que más plantas tiene.
 
 
 ```{r}
-Dat_Infor <- Dat_Entrenamiento[,-c(1:520)]
-# Dat_Infor %>% head()
-Dat_Infor %>% str()
+TrainingDataCleaned %>% select("FLOOR" | "BUILDINGID") %>% table()
 ```
 
 
 ```{r}
-colnames(Dat_Infor)
-Dat_Infor %>% summary()
+#dataf=data.frame(
+#  BUILDINGID = c(rep(0:2, each=5)) , 
+#  PLANTA = rep(0:4,3),
+#  MEDICIONES = as.vector(TrainingDataCleaned %>% select("FLOOR" | "BUILDINGID") %>% table()) ) 
+#
+#ggplot(data=dataf, aes(x=BUILDINGID, y=MEDICIONES,fill=PLANTA) ) + 
+#  scale_y_continuous(breaks = seq(0,7500,by=500) )+
+#    geom_bar(stat="identity", position="dodge2")+ # position=position.stack se puede abreviar con #position="stack".
+#labs(title = "Número de mediciones tomadas en cada edificio por plantas")
+
+```
+
+
+```{r}
+ggplot(data=TrainingDataCleaned, aes(x=BUILDINGID,fill=FLOOR) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en cada edificio por plantas")
+```
+
+
+Vemos que con gran diferencia, el edificio 2 es en el que mayor número de mediciones se han realizado.
+
+
+
+
+
+
+
+
+### Análisis de los usuarios
+
+```{r}
+fig <- plot_ly(TrainingDataCleaned, y = ~LATITUDE, x = ~LONGITUDE,  color = ~USERID)
+fig <- fig %>% add_markers()
+fig <- fig %>% layout(title = 'Representación de los edificios según usuarios',
+  scene = list(xaxis = list(title = 'LONGITUD'),
+                     yaxis=list(title="LATITUD")),
+   annotations = list(text = 'USER ID'))
+
+fig
+```
+
+```{r}
+fig <- plot_ly(TrainingDataCleaned, y = ~LATITUDE, x = ~LONGITUDE, z = ~FLOOR, color = ~USERID)
+fig <- fig %>% add_markers()
+fig <- fig %>% layout(title = 'Representación de los usuarios por edificios y plantas',
+  scene = list(
+                     xaxis = list(title = 'LONGITUD'),
+                     yaxis=list(title="LATITUD"),
+                     zaxis = list(title = 'PLANTA')),
+   annotations = list(text = 'Usuario'))
+
+fig
+```
+
+Observamos claramente como hay usuarios que suelen visitar edificios concretos, ya que la inmensa mayoría de los registros que hace son allí, como por ejemplo el usuario 11 en el edificio 0, aunque tambien visita las plantas 3 y 4 del edificio 2.
+
+
+A continuación vamos a ver en que edificio ha registrado cada usuario el mayor número de visitas
+
+
+```{r}
+
+MaxRegistros <-data.frame(USERID = 1:18,count =  rep(NA,18),BUILDINGID =rep(NA,18) ) 
+for (i in MaxRegistros[,1]) {
+  df<-data.frame(TrainingDataCleaned %>% group_by(USERID,BUILDINGID) %>% summarise(REGISTROS= n()) %>% filter(USERID==i) )
+  MaxRegistros[[i,2]]<- df[which.max(df[,3]),3]
+  MaxRegistros[[i,3]]<- df[which.max(df[,2]),2]
+
+}
+MaxRegistros 
 ```
 
 
@@ -116,56 +221,149 @@ Número de medidas tomadas por cada usuario:
 ```{r}
 Df <-data.frame(USERID = 1:18,count =  rep(NA,18)) 
 for (i in Df[,1]) {
-  Df[[i,2]]<-  Dat_Entrenamiento %>% filter(USERID == i ) %>% nrow() 
+  Df[[i,2]]<-  TrainingDataCleaned %>% filter(USERID == i ) %>% nrow() 
 }
-Df 
+# Df 
+
+
+ggplot(data=TrainingDataCleaned ,
+       aes(x=USERID,fill=USERID)) + 
+    geom_bar(stat="count", position="dodge")+
+  scale_y_continuous(breaks = seq(0,4000,200))+
+labs(title = "Número de mediciones tomadas por cada usuario")
+
 ```
+
+Vemos que hay un usuario en concreto que registra una cantidad de mediciones muy superior al resto, y este es el usuario número 11, con un total de 3703.
+
+
+Número de mediciones tomadas por cada usuario en cada edificio
+
+
+```{r}
+ggplot(data=TrainingDataCleaned ,
+       aes(x=USERID,fill=BUILDINGID)) + 
+    geom_bar(stat="count", position="dodge")+
+  scale_y_continuous(breaks = seq(0,2000,150))+
+labs(title = "Número de mediciones tomadas en cada edificio por cada usuario")
+
+```
+Observamos que los únicos usuarios que han registrado posición en el edificio 0 son el 1 y el 11, pero cabe destacar que el usuario 11 también es el único que ha registrado señal en los tres edificios y el 1 únicamente en el edificio 0.
+
+Conclusión: no todos los usuarios visitan todos los edificios.
+
+
+
+
+#### Comentar gráfico
+
+```{r}
+ggplot(data=TrainingDataCleaned ,
+       aes(x=USERID, fill = FLOOR)) + 
+    geom_bar(stat="count", position="dodge")+
+  scale_y_continuous(breaks = seq(0,2000,150))+
+labs(title = "Número de mediciones tomadas en cada edificio por cada usuario")
+
+
+
+```
+
+
+
+### Análisis de la posición relativa
+
+
+
+Vamos a estudiar a continuación como ha variado el número de mediciones en función de la posición relativa de la toma.
+
+
+
+```{r}
+
+ggplot(data=TrainingDataCleaned, aes(x=RELATIVEPOSITION,fill=RELATIVEPOSITION) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según la posición relativa")
+
+
+ggplot(data=TrainingDataCleaned, aes(x=BUILDINGID,fill=RELATIVEPOSITION) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en cada edificio" , subtitle =  "según la posición relativa")
+
+```
+
+
+Podemos observar como la mayoría de las mediciones han sido tomadas delante de la puerta, y son mucho menos las que han sido tomadas dentro de las habitaciones.
+
+
+### Análisis del espacio 
+
+
+Vamos a hacer un análisis de identificación de los espacios, y así poder ver si todos los edificios tienen los mismos espacios o se identifican unívocamente para cada edificio.
+
+Identificación de los espacios según el edificio.
+
+```{r}
+
+Df_espacio<-
+cbind.data.frame(BUILDINGID=c(rep(0,4),rep(1,4),rep(2,5)),
+rbind.data.frame(
+  TrainingDataCleaned %>%  filter(BUILDINGID==0) %>%   group_by(FLOOR,SPACEID ) %>%  summarize(n()) %>% group_by(FLOOR) %>% summarise(ESPACIOS=n()),
+
+TrainingDataCleaned %>%  filter(BUILDINGID==1) %>%   group_by(FLOOR,SPACEID ) %>%  summarize(n()) %>% group_by(FLOOR) %>% summarise(ESPACIOS=n()),
+
+TrainingDataCleaned %>%  filter(BUILDINGID==2) %>%   group_by(FLOOR,SPACEID ) %>%  summarize(n()) %>% group_by(FLOOR) %>% summarise(ESPACIOS=n())
+)
+)
+
+
+ggplot(data=Df_espacio, aes(x=BUILDINGID,y=ESPACIOS,fill=FLOOR) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="identity", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+  scale_y_continuous(breaks = seq(0,85,by=5))+
+labs(title = "Número de espacios diferentes según edificio y planta")
+
+
+```
+
+
+Aquí podemos ver el número de espacios que hay en cada edificio, y lo que nos hace pensar que no todos los edificios son igual de grandes, ya que el número de espacios del edificio 1 es inferior al resto, siendo el edificio 2 el que mayor número de espacios tiene, sobre todo en la planta 3.
+
+
+
+¿Se repite el número de salas en función del edificio o cada edificio tiene sus propias salas?
+
+```{r}
+TrainingDataCleaned %>% select("SPACEID" | "BUILDINGID") %>% table()
+```
+
+
+Las salas de la 101 a la 122 se repiten para todos los edificios, sin embargo para el edificio 1, las salas de la 1 a la 30 son exclusivas de éste.
+
+Las salas con identificadores 123-140 se repiten para los edificios 0 y 2, pero no existen (o no se han tomado registros) para el edificio 1.
+
+```{r}
+# ggplot(data=TrainingDataCleaned%>% filter(BUILDINGID==0 & FLOOR == 0), aes(x=SPACEID, # fill=SPACEID) ) + 
+#  # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+#     geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con # position="stack".
+# labs(title = "Número de mediciones tomadas en cada edificio por plantas")
+```
+
+
+### j
+
+
+
+
+
+
 Número de medidas tomadas por cada teléfono:
 
 ```{r}
-Dat_Entrenamiento %>% select(PHONEID ) %>% table()
-```
-
-
-Según la planta:
-
-```{r}
-Dat_Entrenamiento %>% select(FLOOR) %>% table()
-
-```
-
-
-Por edificio:
-
-```{r}
-Dat_Entrenamiento %>% select(BUILDINGID) %>% table()
-```
-
-Claramente en el edificio 2 se han tomado una cantidad de señales superior al resto de edificios.
-
-
-```{r}
-Dat_Entrenamiento %>% select(SPACEID) %>% table()
-```
-
-Según la posición relativa:
-
-
-```{r}
-Dat_Entrenamiento %>% select(RELATIVEPOSITION) %>% table()
+TrainingDataCleaned %>% select(PHONEID ) %>% table()
 ```
 
 
 
-```{r}
 
-# Si para una medición todas las intensidades son la misma, eso indicaría que no tengo cobertura # en ningún WAP, y por tanto esos registros los eliminaremos, ya que no nos aportan información # ninguna.
-# 
-# Si la varianza es 0, eso indica que es constante.
-
-
-# Registros con varianza = 0 
-Var0 <- which ( apply(Dat_Entrenamiento[,1:520], 1, var) == 0 ) # índice del registro donde VAR es 0 
-
-Dat_EntrenamientoII <- Dat_Entrenamiento[-Var0 ,]
-```
