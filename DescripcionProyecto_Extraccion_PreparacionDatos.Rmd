@@ -33,6 +33,8 @@ La localización automática de usuarios consiste en estimar la posición del us
 
 Sin embargo, la localización en interiores sigue siendo un problema abierto principalmente debido a la pérdida de señal GPS en entornos interiores. Aunque existen algunas tecnologías y metodologías de posicionamiento en interiores, esta base de datos se centra en las basadas en huellas dactilares WLAN (también conocidas como huellas dactilares WiFi).
 
+
+
 ## Objetivo: Ubicación en interiores
 
 - El objetivo principal es la determinación de la posición física de una persona en un espacio interior de varios edificios mediante señales wifi.
@@ -375,7 +377,7 @@ Dat_EntrenamientoIV$weekday <- as.factor(Dat_EntrenamientoIV$weekday)
 
 
  Dat_EntrenamientoIV$TIMESTAMP<-  as.POSIXct(Dat_EntrenamientoIV$TIMESTAMP,origin=  "1970-01-01")
- attr(Dat_EntrenamientoIV$TIMESTAMP, "tzone") <- "Europe/Paris"
+ # attr(Dat_EntrenamientoIV$TIMESTAMP, "tzone") <- "Europe/Paris"
 ```
 
 
@@ -395,12 +397,28 @@ Es interesante conocer para cada instancia registrada por un usuario, cual es el
 
 Por tanto, crearemos dos nuevas variables:
 
-- SeñalMax: WAP con el que se ha registrado una mayor señal
+- SeñalMax: valor de la intensidad de señal máxima registrada para cada instancia
+
+- Señal min: valor de la intensidad mínima de señal registrada para cada instancia
+
+- NumWAP_Detectados: Para cada registro, se va a recoger el número de WAPS detectados 
 
 
+```{r}
+# Add features highest, lowest  signal column and number of waps connected to
+Dat_EntrenamientoIV$MaxSenal <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
+  max(x))
+Dat_EntrenamientoIV$MinSenal <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
+  min(x[x > 0-120]))
+Dat_EntrenamientoIV$NumWAP_Detectados <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
+  sum(x > -120))
+```
 
 
+El conjunto de datos tiene las siguientes dimensiones: 
 
+- Número de filas: `r dim(Dat_EntrenamientoIV)[1]`
+- Número de columnas `r dim(Dat_EntrenamientoIV)[2]` de las cuales 411 corresponden a la intensidad de señal detectada
 
 ## Conjunto de datos trás el data cleaning
 

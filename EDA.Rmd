@@ -20,6 +20,9 @@ library(ggplot2)
 library(plotly)
 
 library(lubridate)
+
+library(corrplot)
+library(PerformanceAnalytics)
 ```
 
 
@@ -52,7 +55,7 @@ Vamos a mostrar los datos a modo de tabla, pero únicamente mostraremos algunas 
 
 
 ```{r}
-# DT::datatable(TrainingDataCleaned[,-c(7:464)])
+DT::datatable(TrainingDataCleaned[,-c(7:464)])
 ```
 
 
@@ -376,21 +379,8 @@ Las salas con identificadores 123-140 se repiten para los edificios 0 y 2, pero 
 
 Vamos a estudiar como ha afectado la marca temporal a las mediciones y ver si podemos hacer alguna hipótesis
 
-#### Extracción de la fecha con lubridate
-
-En este apartado nos disponemos a extraer toda la información correspondiente a año, mes, día, día de la semana, semana del año correspondiente, hora y minuto de todos los registros de mediciones.
 
 
-
-
-
-```{r}
-dim(TrainingDataCleaned)
-
-
-TrainingDataCleaned[,410:426]
-
-```
 
 ```{r}
 ggplot(data=TrainingDataCleaned, aes(x=month , fill=month) ) + 
@@ -517,21 +507,79 @@ Destacamos lo siguiente:
 
 
 
-### j
 
 
 
 
 
 
+### Distribución de los valores máximos y mínimos de señal
 
-
-Número de medidas tomadas por cada teléfono:
+A continuación, vamos a representar la señal máxima detectada 
 
 ```{r}
-TrainingDataCleaned %>% select(PHONEID ) %>% table()
+ggplot(data=TrainingDataCleaned %>% filter(MaxSenal > -120), aes(x=MaxSenal ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2", fill="#FF6666")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Valor de señal mínimo detectado") + 
+  xlab("Valor de la intensidad de señal registrada (dBm)")+
+  ylab("Num registros en la base de datos")+
+  scale_x_continuous(breaks = seq(-125,0,by=5))+
+  scale_y_continuous(breaks = seq(0,600,by=50))
+
+sort(TrainingDataCleaned$MaxSenal )
 ```
 
+Observamos que la máxima señal detectada que se repita más veces es para unos valores de intensidad de -58 y -61 dBm.
+
+Además, es destacable que una intensidad de señal partir de -40 dBm se ha registrado como valor máximo muy pocas veces, destacando que el valor 0 se ha detectado hasta 50 veces.
+
+
+Para la señal mínima:
+
+```{r}
+ggplot(data=TrainingDataCleaned , aes(x=MinSenal ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2", fill="#FF6666")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Valor de señal mínimo detectado") + 
+  xlab("Valor de la intensidad de señal registrada (dBm)")+
+  ylab("Num registros en la base de datos")+
+  scale_x_continuous(breaks = seq(-105,-60,by=5))+
+  scale_y_continuous(breaks = seq(0,2000,by=100))
+```
+
+Los valores de intensidad de señal mínima corresponden a valores muy pobres, es decir, la señal era muy muy baja
+
+
+```{r}
+ggplot(data=TrainingDataCleaned , aes(x=NumWAP_Detectados ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2", fill="#FF6666")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de WAPS detectados") + 
+  xlab("Nº WAPS detectados")+
+  ylab("Num registros en la base de datos")+
+  scale_x_continuous(breaks = seq(0,51,by=5))+
+  scale_y_continuous(breaks = seq(0,1200,by=100))
+```
+
+Observamos que en muy pocas ocasiones se ha registrado señal en un único WAP y sin embargo, casi 1200 veces se ha detectado intensidad de señal en 15 WAPS a la vez. A partir de este valor anterior, el número de WAPS detectados al mismo tiempo en cada medición decrece considerablemente, y más aún a partir de los 21 WAPS detectados a la vez. 
+
+
+
+
+
+
+
+
+
+## Correlación
+
+Nota: El coeficiente de correlación es una medida que cuantifica la intensidad de la relación lineal entre dos varaibles, y por tanto, no tiene mucho sentido estudiar aquí este coeficiente, ya que no vamos a aplicar métodos de regresión para nuestras predicciones
+
+
+```{r}
+round(cor(TrainingDataCleaned[,1:411]),2)
+```
 
 
 
