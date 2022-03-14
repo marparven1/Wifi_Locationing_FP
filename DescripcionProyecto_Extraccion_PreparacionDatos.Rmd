@@ -15,6 +15,8 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE , warning = FALSE)
 ```{r}
 library(dplyr)
 library(kableExtra)
+
+library(lubridate)
 ```
 
 # Descripción del proyecto
@@ -160,7 +162,9 @@ Dat_Validacion <- read.csv2(file = "Data_UJIndoorLoc/validationData.csv",header 
 # Dat_Entrenamiento %>% summary()
 dim(Dat_Entrenamiento)
 Dat_Entrenamiento[1,-c(2:519)] %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+
 ```
+
 
 La dimensión de los datos de entrenamiento, que son los que utilizaremos para tratar de modelar la intensidad de señal es  la siguiente: `r dim(Dat_Entrenamiento)` y la de los datos de validación de los modelos: `r dim(Dat_Validacion)`, y ambas tienen las mismas variables.
 
@@ -182,6 +186,8 @@ Ya nos indicaron en la descripción que no había datos faltantes.
 
 El conjunto de datos contiene un gran número de variables, con un total de `r ncol(Dat_Entrenamiento)`. Además, en el conjunto de las 520 variables predictoras, el valor predominante es el de la no detección de señal y esto hará que en muchos casos, la varianza de estas variables sea muy cercana a 0.
 
+
+
 La varianza de 50 de las 520 variables las encontramos a continuación:
 
 ```{r}
@@ -189,13 +195,26 @@ apply(Dat_Entrenamiento[,1:520], 2, var) %>% head(100)
 ```
 Nos planteamos ahora lo siguiente, ¿cuándo considerar una varianza muy pequeña?
 
+
+
+
 El valor medio de todas las varianzas es de: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% mean()`y los cuantiles: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% quantile()`. Es decir, el valor de la varianza que ha sido superado por el 75% de los WAPS es de 17.73. Podríamos considerar una varianza pequeña si no supera el valor de 10, teniendo así `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  < 10 ))` variables con varianza menor que 10, siendo `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  == 0 ))` de ellas variables con varianza nula.
 
 
-Para aquellas variables donde la varianza es nula (no es una variable, sino una constante) o con un valor menor que el umbral, optaremos por eliminarlas de nuestro conjunto de datos para así reducir el número de variables. Eliminar WAPS es eliminar zonas de *detección*, pero a la hora del modelado hará que tengamos menos errores y por tanto, mayor fiabilidad en las métricas.
+Eliminar WAPS es eliminar zonas de *detección*, pero a la hora del modelado hará que tengamos menos errores y por tanto, mayor fiabilidad en las métricas.
+
+- Varianzas próximas a 0
+
+Esto indicaría que existen zonas de los edificios que están poco cubiertas y por tanto, que se ha registrado conexión en muy pocas ocasiones y la mayoría de las veces se trata de registros de no detección. Esas zonas están muy poco transitadas y por ello, es necesario eliminar estas variables, ya que podrían introducir ruido.
 
 
-Si la varianza de un WAP es nula, eso indicaría que no se pasa por ningún área de influencia de ese WAP. Una varianza nula indicaría que no se trataría de una variable, sino de una constante. En nuestro conjunto de datos, hay un total de `r length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )`  WAPs  que tienen varianza 0 de los 520 existentes, y son las siguientes mostradas a continuación:
+- Varianza igual a 0
+
+Para aquellas variables donde la varianza es nula (no es una variable, sino una constante) o con un valor menor que el umbral, optaremos por eliminarlas de nuestro conjunto de datos para así reducir el número de variables. 
+
+Si la varianza de un WAP es nula, eso indicaría que no se pasa por ningún área de influencia de ese WAP, es decir, nadie ha pasado por ahí y hay un área que no está cubierta. Sin embargo, no podemos saber de que área se trata ya que no sabemos donde están ubicados los diferentes WAPs. Es necesario eliminar éstas variables ya que al haber partes del edificio que no registran señal, no aportan información y por tanto nuestro modelo no sería del todo adecuado.
+
+En nuestro conjunto de datos, hay un total de `r length(which ( (apply(Dat_Entrenamiento[,1:520], 2, var) == 0 ) ) )`  WAPs  que tienen varianza 0 de los 520 existentes, y son las siguientes mostradas a continuación:
 
 
 ```{r}
@@ -337,8 +356,26 @@ Además, tenemos que transformar la variable Timestamp a formato horario.
 
 
 ```{r}
-Dat_EntrenamientoIV$TIMESTAMP<-  as.POSIXct(Dat_EntrenamientoIV$TIMESTAMP,origin= "1970-01-01")
-Dat_EntrenamientoIV$TIMESTAMP %>% head()
+Dat_EntrenamientoIV$TIMESTAMP<-as_datetime(Dat_EntrenamientoIV$TIMESTAMP)
+
+Dat_EntrenamientoIV$year <-    year( as_datetime(Dat_EntrenamientoIV$TIMESTAMP) ) # extraemos el año
+Dat_EntrenamientoIV$month<-  month(as_datetime(Dat_EntrenamientoIV$TIMESTAMP) ) # extraemos el mes
+Dat_EntrenamientoIV$day<-       day(as_datetime(Dat_EntrenamientoIV$TIMESTAMP)  ) # extraemos el día
+Dat_EntrenamientoIV$hour<-     hour( as_datetime(Dat_EntrenamientoIV$TIMESTAMP)  ) # extraemos la hora
+Dat_EntrenamientoIV$week<-     week( as_datetime(Dat_EntrenamientoIV$TIMESTAMP) )
+Dat_EntrenamientoIV$weekday<-wday(   as_datetime(Dat_EntrenamientoIV$TIMESTAMP),week_start = 1)
+
+
+
+Dat_EntrenamientoIV$month   <- as.factor(Dat_EntrenamientoIV$month  )
+Dat_EntrenamientoIV$day     <- as.factor(Dat_EntrenamientoIV$day    )
+Dat_EntrenamientoIV$hour    <- as.factor(Dat_EntrenamientoIV$hour   )
+Dat_EntrenamientoIV$week    <- as.factor(Dat_EntrenamientoIV$week   )
+Dat_EntrenamientoIV$weekday <- as.factor(Dat_EntrenamientoIV$weekday)
+
+
+ Dat_EntrenamientoIV$TIMESTAMP<-  as.POSIXct(Dat_EntrenamientoIV$TIMESTAMP,origin=  "1970-01-01")
+ attr(Dat_EntrenamientoIV$TIMESTAMP, "tzone") <- "Europe/Paris"
 ```
 
 

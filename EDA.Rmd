@@ -18,6 +18,8 @@ library(kableExtra)
 
 library(ggplot2)
 library(plotly)
+
+library(lubridate)
 ```
 
 
@@ -261,15 +263,25 @@ SEPARAR POR EDIFICIO, PLANTAS AISLADAS NO
 
 
 ```{r}
-ggplot(data=TrainingDataCleaned ,
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==0) ,
        aes(x=USERID, fill = FLOOR)) + 
     geom_bar(stat="count", position="dodge")+
   scale_y_continuous(breaks = seq(0,2000,150))+
-labs(title = "Número de mediciones tomadas en cada edificio por cada usuario")
+labs(title = "Número de mediciones tomadas en el edificio 0 \n Por planta y usuario")
+
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==1) ,
+       aes(x=USERID, fill = FLOOR)) + 
+    geom_bar(stat="count", position="dodge")+
+labs(title = "Número de mediciones tomadas en el edificio 1 \n Por planta y usuario")
 
 
-
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==2) ,
+       aes(x=USERID, fill = FLOOR)) + 
+    geom_bar(stat="count", position="dodge")+
+labs(title = "Número de mediciones tomadas en el edificio 2 \n Por planta y usuario")
 ```
+
+Vemos que la mayoría de individuos han tomado mediciones únicamente en una planta, aunque hayan visitado más de un edificio.
 
 
 
@@ -354,7 +366,160 @@ Las salas con identificadores 123-140 se repiten para los edificios 0 y 2, pero 
 ```
 
 
+
+
+
+
+
+### Análisis temporal
+
+
+Vamos a estudiar como ha afectado la marca temporal a las mediciones y ver si podemos hacer alguna hipótesis
+
+#### Extracción de la fecha con lubridate
+
+En este apartado nos disponemos a extraer toda la información correspondiente a año, mes, día, día de la semana, semana del año correspondiente, hora y minuto de todos los registros de mediciones.
+
+
+
+
+
+```{r}
+dim(TrainingDataCleaned)
+
+
+TrainingDataCleaned[,410:426]
+
+```
+
+```{r}
+ggplot(data=TrainingDataCleaned, aes(x=month , fill=month) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones según mes") + 
+  scale_x_discrete("Mes", labels = c("5" = "Mayo","6" = "Junio") )+ 
+  scale_y_continuous(breaks = seq(0,20000,by=1000))
+```
+
+Observamos, en primer lugar, que únicamente se han tomado mediciones en los meses de Mayo y Junio. Además, observamos que la mayoría de observaciones han sido tomadas en el mes de Julio, con un total de `r data.frame(TrainingDataCleaned %>% group_by(month) %>% summarise(n()) %>% select("n()"))[2,1]`, que supone un `r round(100*(data.frame(TrainingDataCleaned %>% group_by(month) %>% summarise(n()) %>% select("n()"))[2,1]/sum(data.frame(TrainingDataCleaned %>% group_by(month) %>% summarise(n()) %>% select("n()"))[,1] ) ),2)` % del total de mediciones. Por el contrario, en el mes de Mayo hubo un total de `r data.frame(TrainingDataCleaned %>% group_by(month) %>% summarise(n()) %>% select("n()"))[1,1]`
+
+```{r}
+
+ggplot(data=TrainingDataCleaned, aes(x=day , fill = month ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas por meses según día") 
+```
+
+
+El motivo por el que la mayoría de mediciones se han tomado en el mes de Junio es que únicamente se han recogido mediciones los dos últimos días en el mes de Mayo, mientras que para Junio, se han recogido 4 días en total.
+
+
+A continuación vamos a estudiar como varían las mediciones según el edificio:
+
+```{r}
+ggplot(data=TrainingDataCleaned, aes(x=month , fill = BUILDINGID) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en cada edificio por meses") + 
+  scale_x_discrete("Mes", labels = c("5" = "Mayo","6" = "Junio") )+  scale_y_continuous(breaks = seq(0,8000,by=500))
+```
+
+La mayoría de mediciones han sido tomadas en el edificio 2 y todas han sido tomadas en el mes de Junio. Cabe resaltar que en Mayo, únicamente se registran mediciones en el edificio 0.
+
+
+A continuación vamos a ver como se distribuyen las mediciones según el edificio y por planta.
+
+```{r}
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==0), aes(x=month , fill = FLOOR) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en el edificio 0",subtitle = "Por plantas") + 
+  scale_x_discrete("Mes", labels = c("5" = "Mayo","6" = "Junio") )+  scale_y_continuous(breaks = seq(0,1000,by=100))
+
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==1), aes(x=month , fill = FLOOR) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en el edificio 1",subtitle = "Por plantas") + 
+ scale_y_continuous(breaks = seq(0,1200,by=100))
+
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID==2), aes(x=month , fill = FLOOR) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas en el edificio 2",subtitle = "Por plantas") + 
+ scale_y_continuous(breaks = seq(0,2300,by=100))
+```
+
+Vamos a comprobar como se distribuyen las mediciones según el día de la semana.
+
+
+```{r}
+ggplot(data=TrainingDataCleaned , aes(x=weekday , fill = weekday ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según día de la semana") +
+    scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+```
+
+
+
+Observamos que únicamente se han tomado mediciones los días entre semana, y además, que la mayoría de ellas hansido tomadas los jueves.
+
+
+
+```{r}
+ggplot(data=TrainingDataCleaned, aes(x=weekday , fill = month ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según día de la semana y mes") +    scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+```
+
+
+
+De todas las mediciones, vemos que en el mes de mayo únicamente se tomaron mediciones los Jueves y Viernes.
+
+
+
+```{r}
+ggplot(data=TrainingDataCleaned, aes(x=hour , fill = month ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según hora del registro y mes") +    scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+```
+
+La distribución de las horas a las que se han tomado las medidas también varía de un mes a otro, ya que en el mes de Munio, la mayoría se han registrado en la franja horaria de 6 AM a 10 AM, mientras que en Mayo, muchas de las mediciones fueron a las 4 de la tarde.
+
+
+Por último, comprobaremos como varía la toma de registros según el usuario que los ha tomado y por edificio.
+
+```{r}
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID == 0), aes(x=weekday, fill = USERID ) ) + 
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según día de la semana y usuario", subtitle = "Edificio 0") +   
+  scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID == 1), aes(x=weekday, fill = USERID ) ) + 
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según día de la semana y usuario", subtitle = "Edificio 1") +   
+  scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+
+ggplot(data=TrainingDataCleaned %>% filter(BUILDINGID == 2), aes(x=weekday, fill = USERID ) ) + 
+    geom_bar(stat="count", position="dodge2")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Número de mediciones tomadas según día de la semana y usuario", subtitle = "Edificio 0") +   
+  scale_x_discrete("Mes", labels = c("1" = "Lunes","2" ="Martes","3"="Miércoles","4"="Jueves","5"="Viernes") )
+```
+
+Destacamos lo siguiente:
+
+- En los edificios 1 y 2 únicamente se han registrado tomas de señal los jueves
+- En el edificio 0 se registran tomas de señal todos los días entre semana, pero únicamente por dos usuarios que no registran tomas los mismos días y la mayoría de mediciones se han tomado los Miércoles por el usuario 1
+- Hay usuarios como el usuario 4 que únicamente registran tomas de señal en el edificio 1 y ocurre lo mismo para los usuarios  5, 6 y 15 en el edificio 2.
+
+
+
 ### j
+
+
 
 
 
