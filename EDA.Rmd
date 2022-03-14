@@ -578,7 +578,7 @@ Nota: El coeficiente de correlación es una medida que cuantifica la intensidad 
 
 
 ```{r}
-round(cor(TrainingDataCleaned[,1:411]),2)
+# round(cor(TrainingDataCleaned[,1:411]),2)
 ```
 
 

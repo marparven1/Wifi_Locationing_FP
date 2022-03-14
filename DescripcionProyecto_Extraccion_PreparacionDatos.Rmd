@@ -17,6 +17,7 @@ library(dplyr)
 library(kableExtra)
 
 library(lubridate)
+library(ggplot2)
 ```
 
 # Descripción del proyecto
@@ -200,7 +201,7 @@ Nos planteamos ahora lo siguiente, ¿cuándo considerar una varianza muy pequeñ
 
 
 
-El valor medio de todas las varianzas es de: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% mean()`y los cuantiles: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% quantile()`. Es decir, el valor de la varianza que ha sido superado por el 75% de los WAPS es de 17.73. Podríamos considerar una varianza pequeña si no supera el valor de 10, teniendo así `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  < 10 ))` variables con varianza menor que 10, siendo `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  == 0 ))` de ellas variables con varianza nula.
+El valor medio de todas las varianzas es de: `r round(apply(Dat_Entrenamiento[,1:520], 2, var) %>% mean(),2)`y los cuantiles: `r apply(Dat_Entrenamiento[,1:520], 2, var) %>% quantile()`. Es decir, el valor de la varianza que ha sido superado por el 75% de los WAPS es de 17.73. Podríamos considerar una varianza pequeña si no supera el valor del primer cuartil, 17.7394327, teniendo así `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  < 17.7394327 ))` variables con varianza menor que 10, siendo `r length(which ( apply(Dat_Entrenamiento[,1:520], 2, var)  == 0 ))` de ellas variables con varianza nula.
 
 
 Eliminar WAPS es eliminar zonas de *detección*, pero a la hora del modelado hará que tengamos menos errores y por tanto, mayor fiabilidad en las métricas.
@@ -228,7 +229,8 @@ Esto implicaría que ahora tenemos `r 520 - length(which ( (apply(Dat_Entrenamie
 
 
 ```{r}
-Dat_EntrenamientoII <- Dat_Entrenamiento[,-which ( apply(Dat_Entrenamiento[,1:520], 2, var) < 10 )  ]
+Dat_EntrenamientoII <- Dat_Entrenamiento[,-which ( apply(Dat_Entrenamiento[,1:520], 2, var) < 17.7394327 )  ]
+
 ```
 
 Ahora tenemos un conjunto de dato con las siguientes dimensiones: `r dim(Dat_EntrenamientoII)`.
@@ -319,14 +321,14 @@ Dat_EntrenamientoIV$LONGITUDE<-as.numeric(Dat_EntrenamientoIV$LONGITUDE)
 
 
 ```{r}
-Dat_EntrenamientoIV[,-c(1:411)] %>% str()
+Dat_EntrenamientoIV[,-c(1:389)] %>% str()
 ```
 
 
 
 
 ```{r}
-# Dat_EntrenamientoIV[,-c(1:411)] %>% summary()
+# Dat_EntrenamientoIV[,-c(1:390)] %>% summary()
 ```
 
 
@@ -334,18 +336,18 @@ Dat_EntrenamientoIV[,-c(1:411)] %>% str()
 
 Nos han indicado que la no cobertura se ha caracterizado en nuestro dataset con un señal de 100 dBm. Como esto no es una situación real, vamos a transformar los registros con que tengan una señal con un valor de 100 dBm a un valor más pequeño que indique que no se ha registrado señal en ese WAP.
 
-El valor de intensidad de señal mínimo registrado ha sido de `r min(apply(Dat_EntrenamientoIV[,1:411], 1, min))` dBm, por tanto, optaremos por considerar que el valor de la no cobertura para la no conexión es de -120 dBm.
+El valor de intensidad de señal mínimo registrado ha sido de `r min(apply(Dat_EntrenamientoIV[,1:390], 1, min))` dBm, por tanto, optaremos por considerar que el valor de la no cobertura para la no conexión es de -120 dBm.
 
 
 
 Realizamos la transformación y mostramos unos cuantos registros para su visualización.
 
 ```{r}
-for (i in seq_len(411)) {
+for (i in seq_len(389)) {
  Dat_EntrenamientoIV[,i] =  ifelse(Dat_EntrenamientoIV[,i]==100, -120 , Dat_EntrenamientoIV[,i] )
 }
 
-Dat_EntrenamientoIV[,-c(7:410)] %>% head(3)
+Dat_EntrenamientoIV[,-c(7:388)] %>% head(3)
 
 ```
 
@@ -405,20 +407,86 @@ Por tanto, crearemos dos nuevas variables:
 
 
 ```{r}
-# Add features highest, lowest  signal column and number of waps connected to
-Dat_EntrenamientoIV$MaxSenal <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
+Dat_EntrenamientoIV$MaxSenal <- apply( Dat_EntrenamientoIV[, 1:389], 1, function(x)
   max(x))
-Dat_EntrenamientoIV$MinSenal <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
-  min(x[x > 0-120]))
-Dat_EntrenamientoIV$NumWAP_Detectados <- apply( Dat_EntrenamientoIV[, 1:411], 1, function(x)
+Dat_EntrenamientoIV$MinSenal <- apply( Dat_EntrenamientoIV[, 1:389], 1, function(x)
+  min(x[x > -120]))
+Dat_EntrenamientoIV$NumWAP_Detectados <- apply( Dat_EntrenamientoIV[, 1:389], 1, function(x)
   sum(x > -120))
+
 ```
 
 
 El conjunto de datos tiene las siguientes dimensiones: 
 
 - Número de filas: `r dim(Dat_EntrenamientoIV)[1]`
-- Número de columnas `r dim(Dat_EntrenamientoIV)[2]` de las cuales 411 corresponden a la intensidad de señal detectada
+- Número de columnas `r dim(Dat_EntrenamientoIV)[2]` de las cuales 389 corresponden a la intensidad de señal detectada
+
+
+
+Vamos a estudiar con detenimiento el número de WAPS detectados, ya que es fundamental tener en cuenta que hay 389 variables WAP y lo mas probable es que la mayoría de estos valores correspondan a la no detección de señal.
+
+- Valor medio, mediano y quartiles:
+
+```{r}
+Dat_EntrenamientoIV$NumWAP_Detectados %>% summary()
+```
+
+
+En el 50% del número total de registros se ha detectado señal con un total de 16 WAPS o menos al mismo tiempo.
+
+- Deciles:
+
+```{r}
+Dat_EntrenamientoIV$NumWAP_Detectados %>% quantile(prob=seq(0, 1, length = 11))
+```
+
+
+```{r}
+ggplot(data=Dat_EntrenamientoIV , aes(x=NumWAP_Detectados ) ) + 
+ # scale_y_continuous(breaks = seq(0,3000,by=500) )+
+    geom_bar(stat="count", position="dodge2", fill="#FF6666")+ # position=position.stack se puede abreviar con position="stack".
+labs(title = "Sistribución de la frecuencia de WAPS detectados") + 
+  xlab("Nº WAPS detectados")+
+  ylab("Num registros en la base de datos")+
+  scale_x_continuous(breaks = seq(0,51,by=5))+
+  scale_y_continuous(breaks = seq(0,1200,by=100))
+```
+
+
+Vemos como algunas mediciones no han detectado ningún punto de acceso y el valor máximo de puntos de acceso detectados es de 51 WAPS en total. Esto indicaría que el resto de los `r 389 - 51` valores de la huella digital indican la no detección, es decir, conexión nula.  Es decir, si el 90% de las mediciones han detectado únicamente 28 puntos de acceso o menos, la mayoría de los valores de nuestra base de datos son nulos.
+
+En primer lugar, eliminamos aquellas filas que no hayan registrado intensidad de señal con ningún WAP, ya que esto significa que a esa zona no llega conexión alguna. Se trata de un total de  `r nrow(Dat_EntrenamientoIV[Dat_EntrenamientoIV$NumWAP_Detectados == 0,])` registros de los usuarios.
+
+```{r}
+Dat_EntrenamientoV<-Dat_EntrenamientoIV %>% filter(Dat_EntrenamientoIV$NumWAP_Detectados != 0)
+```
+
+
+
+Debemos reducir el número de valores nulos en nuestra base datos y para ello, haremos lo siguiente: seleccionar únicamente aquellos WAPs con los que se haya registrado una intensidad de señal mayor, haciendo uso de la nueva variable llamada MaxSenal, que indica cual ha sido la máxima intensidad de señal registrada en cada medición. 
+
+
+
+
+```{r}
+MiLista<-as.list(as.list(rep(NA,389))) 
+
+for (i in seq_len(389)) {
+  MiLista[[i]]<- colnames( Dat_EntrenamientoV[i,Dat_EntrenamientoV[i,]== Dat_EntrenamientoV$MaxSenal[i]])
+  MiLista[[i]]<- MiLista[[i]][-length(MiLista[[i]])]
+}
+# En esta lista contenemos los WAPS para los que tenemos el valor máximo de señal
+
+length( unique( unlist(MiLista) )  )
+# Hay 39 diferentes, hablar con Mercé, son muy pocos WAPS
+```
+
+
+
+
+
+
 
 ## Conjunto de datos trás el data cleaning
 
@@ -427,20 +495,20 @@ A continuación mostraremos el formato de las variables del conjunto de datos fi
 
 
 ```{r}
-Dat_EntrenamientoIV[,-c(2:410)] %>% str()
+Dat_EntrenamientoV[,-c(2:389)] %>% str()
 ```
 
 
 
 ```{r}
-DT::datatable(Dat_EntrenamientoIV[,-c(7:409)])
+DT::datatable(Dat_EntrenamientoV[,-c(7:4387)])
 ```
 
 
 Por último, guardamos los datos ya preparados para el análisis en un archivo tipo *.RData* llamado *TrainingDataCleaned.RData*
 
 ```{r}
-TrainingDataCleaned<- Dat_EntrenamientoIV
+TrainingDataCleaned<- Dat_EntrenamientoV
 save(TrainingDataCleaned,file = "Data_UJIndoorLoc/TrainingDataCleaned.RData")
 ```
 
