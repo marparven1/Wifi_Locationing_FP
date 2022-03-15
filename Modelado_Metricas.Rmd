@@ -115,7 +115,7 @@ En primer lugar, para la replicación de los resultados, usamos la función trai
 
 ```{r}
 # Para todos los modelos
-fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1,
+fitControl <- trainControl(method = "repeatedcv", number = 7, repeats = 1,
                           # verboseIter =TRUE 
 )
 ```
@@ -137,23 +137,75 @@ data_frame("Variables predictoras" = c(colnames(TrainingDataCleaned[,1:390]) %>%
 
 Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de clasificación, que genera árboles de decisión. Aplicaremos el algoritmo a las columnas del dataset de entrenamiento correspondientes a la medición de la intensidad de señal detectada
 
-### Hiperparametros del algoritmo C5.0
+#### Hiperparametros del algoritmo C5.0
 
 - Número de intentos (tune length): 5
 - Validación cruzaza con 10 grupos y una repetición
 
-### 5.2.1.2 Modelado
+#### Modelado
 
 
 ```{r}
 set.seed(17)
-modeloC5.0 <- train(BUILDINGID~., 
-                data = DatosEntreamientoValidacion[,-c(392,393)], 
-                method = "C5.0", 
-                trControl=fitControl, 
-                tuneLength = 5)
+# modeloC5.0 <- train(BUILDINGID~., 
+#                 data = DatosEntreamientoValidacion[,-c(392,393)], 
+#                 method = "C5.0", 
+#                 trControl=fitControl, 
+#                 tuneLength = 5)
 # summary(modeloC5.0)
 ```
 
 
 
+Veamos la importancia de las variables en mi modelo:
+
+
+```{r}
+# ImpC5.0<-varImp(modeloC5.0)
+# ImpC5.0
+# 
+# 
+# ggplot(ImpC5.0 ) +
+# geom_point( color="white", size=4, alpha=0.5)+
+#   scale_y_continuous(breaks = seq(0,100,by=10))+
+# xlab('Variable')+
+# ylab('Importancia')+
+# labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: # elaboración propia")+
+# theme_minimal()
+```
+
+
+### Algoritmo 2: KNN
+
+
+#### Hiperparametros
+- Número de intentos (tune length): 3
+- Validación cruzaza con 10 grupos y una repetición
+- Prueba con k = 5,7,9 para obtener un k que optimice las métricas
+
+#### Modelado
+
+```{r}
+set.seed(17)
+KNNmodel <- train(BUILDINGID~., 
+                 data = DatosEntreamientoValidacion[,-c(392,393)], 
+                 method = "knn",
+                 trControl=fitControl,
+                 tuneLength = 3)
+KNNmodel 
+```
+
+
+```{r}
+ImpKNN<-varImp(KNNmodel,k=35)
+ImpKNN
+
+
+ggplot(ImpKNN ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: elaboración propia")+
+theme_minimal()
+```
