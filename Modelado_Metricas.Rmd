@@ -1,0 +1,159 @@
+---
+title: "Modelado y evaluación de las métricas"
+author: "Marta Venegas Pardo"
+date: "3/15/2022"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE , warning = FALSE)
+```
+
+
+```{r}
+library(dplyr)
+library(kableExtra)
+
+library(ggplot2)
+library(plotly)
+
+library(caret)
+```
+
+
+# Introducción
+
+Pasos hasta aquí.
+
+- El objetivo principal es la determinación de la posición física de una persona en un espacio interior de varios edificios mediante señales wifi.
+
+- Variables objetivo: aquellas relacionadas con la posición del usuario, es decir, las coordenadas (latitud, longitud, piso) y el ID del edificio.
+
+
+## Procedimiento
+
+Se tratará de llevar a cabo la localización de las personas mediante la creación de modelos de aprendizaje automático y el posterior estudio de las métricas obtenidas para ver cuál produce el mejor resultado.
+
+Modelos:
+
+- Regresión: latitud y longitud
+- Clasificación: ID del edificio, planta y espacio (Predicción en cascada)
+
+Targets:
+
+El objetivo es estimar el edificio, el piso, el espacio y las coordenadas (latitud y longitud) de las 1111 muestras incluidas en el conjunto de validación (datos de testeo). Como también se incluyen los valores reales del edificio, planta y coordenadas, es posible determinar el error de localización.
+
+Para la clasificación del edificio, planta y espacio optaremos por una predicción en cascada,   que consiste en lo siguiente:
+
+- En primer lugar se emplearán distintos algorimos de clasificación (SVM, KNN, Árboles) para clasificar el edificio
+- A continuación, crearemos tres subsets de los datos, uno por cada ID de edificio resultante de la clasificación para predecir la planta 
+- Por último, volveremos a crear diferentes subsets, obteniendo uno por cada planta de cada edificio, para así poder predecir el espacio donde se encuentra el usuario
+
+
+Es importante que en el primer paso para obtener una clasificación del edificio el resultado sean unas buenas métricas, ya que sino, este no será un buen método para la predicción del resto de atributos.
+
+Algoritmos utilizados
+
+- Regresión
+- Clasificación: Support Vector Machine, KNN, Random Forest (algún árbol), C.50
+
+
+Estamos trabajando con un conjunto de datos con las siguientes dimensiones: `r dim(TrainingDataCleaned)`, siendo un total de 390 variables correspondientes a la intensidad de señal de las 408 variables totales.
+
+# Datos para la predicción en cascada
+
+
+```{r}
+# carga de datos 
+load("Data_UJIndoorLoc/TrainingDataCleaned.RData")
+```
+
+## División de los datos en entrenamiento y validación
+
+Tomaremos una partición de 80% 20% para datos de entrenamiento y testeo
+
+
+```{r}
+Targets <- TrainingDataCleaned[,c(1:390,394,395,396) ]
+set.seed(17)
+indicesEntrenamiento <- 
+  createDataPartition(TrainingDataCleaned$BUILDINGID,
+                      p = .8, list = FALSE)
+DatosEntreamiento <- TrainingDataCleaned[indicesEntrenamiento,]
+DatosTesteo <-TrainingDataCleaned[-indicesEntrenamiento,]
+
+set.seed(17)
+indicesValidacion <- createDataPartition(DatosEntreamiento$BUILDINGID,
+                      p = .8, list = FALSE)
+DatosEntreamientoValidacion <- TrainingDataCleaned[indicesValidacion,]
+DatosTesteoValidacion <-TrainingDataCleaned[-indicesValidacion,]
+# 91 Building ID
+# 92 Floor
+# 93 Space
+```
+
+Debemos comprobar que las proporciones de mediciones tomadas en cada edificio se mantengan en ambos conjuntos de datos:
+
+```{r}
+PropEnt <- data.frame( round( DatosEntreamiento %>% select(BUILDINGID) %>% table() %>% prop.table() , 3 ) ) 
+colnames(PropEnt)<- c("ID edificio", "Proporción")
+PropEnt%>% kable(caption = "Proporción en datos de entrenamiento", booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+
+PropTest <- data.frame( round( DatosTesteo %>% select(BUILDINGID) %>% table() %>% prop.table() , 3 ) ) 
+colnames(PropTest)<- c("ID edificio", "Proporción")
+PropEnt%>% kable(caption = "Proporción en datos test", booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+La proporción se mantiene perfectamente, por lo que podemos proceder a modelar.
+
+
+
+En primer lugar, para la replicación de los resultados, usamos la función trainControl.
+
+```{r}
+# Para todos los modelos
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1,
+                          # verboseIter =TRUE 
+)
+```
+
+
+## Primera iteración: Prueba de algoritmos, hiperparámetros y estrategias de optimización para la clasificación del ID del edificio
+
+
+La variable es categórica, por lo que emplearemos algoritmos de clasificación.
+
+Las variables predictoras del ID del edificio serán las 390 correspondientes a la intensidad de señal, y a continuación vamos a mostrar 12 de ellas. Se trata de variables numéricas que miden el valor de la intensidad de señal que llega al móvil desde cada punto de acceso inalámbrico WAP.
+
+```{r}
+data_frame("Variables predictoras" = c(colnames(TrainingDataCleaned[,1:390]) %>% head(),colnames(TrainingDataCleaned[,1:390]) %>% tail()) ) %>% kable(booktabs=TRUE ) %>% kable_styling(latex_options = "striped")
+```
+
+
+### Algoritmo 1: C5.0
+
+Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de clasificación, que genera árboles de decisión. Aplicaremos el algoritmo a las columnas del dataset de entrenamiento correspondientes a la medición de la intensidad de señal detectada
+
+### Hiperparametros del algoritmo C5.0
+
+- Número de intentos (tune length): 5
+- Validación cruzaza con 10 grupos y una repetición
+
+### 5.2.1.2 Modelado
+
+
+```{r}
+set.seed(17)
+modeloC5.0 <- train(BUILDINGID~., 
+                data = DatosEntreamientoValidacion[,-c(392,393)], 
+                method = "C5.0", 
+                trControl=fitControl, 
+                tuneLength = 5)
+# summary(modeloC5.0)
+```
+
+
+

@@ -464,8 +464,9 @@ Dat_EntrenamientoV<-Dat_EntrenamientoIV %>% filter(Dat_EntrenamientoIV$NumWAP_De
 
 
 
-Debemos reducir el número de valores nulos en nuestra base datos y para ello, haremos lo siguiente: seleccionar únicamente aquellos WAPs con los que se haya registrado una intensidad de señal mayor, haciendo uso de la nueva variable llamada MaxSenal, que indica cual ha sido la máxima intensidad de señal registrada en cada medición. 
+Podríamos optar por reducir el número de valores nulos en nuestra base datos y para ello, habría que hacer lo siguiente: seleccionar únicamente aquellos WAPs con los que se haya registrado una intensidad de señal mayor, haciendo uso de la nueva variable llamada MaxSenal, que indica cual ha sido la máxima intensidad de señal registrada en cada medición. 
 
+Sin embargo, si hicéramos esto únicamente nos quedaríamos con `r length( unique( unlist(MiLista) )  )` WAPS de los 520 iniciales, pero eso sería perder demasiada información, y por tanto, nos quedaremos como estamos actualmente, con un total de 389 WAPS de los 520 iniciales.
 
 
 
@@ -478,8 +479,9 @@ for (i in seq_len(389)) {
 }
 # En esta lista contenemos los WAPS para los que tenemos el valor máximo de señal
 
-length( unique( unlist(MiLista) )  )
-# Hay 39 diferentes, hablar con Mercé, son muy pocos WAPS
+# length( unique( unlist(MiLista) )  )
+# Hay 39 diferentes, hablar con Mercé, son muy pocos WAPS -> PIERDO MUCHA INFORMACIÓN
+# Son los WAPS ppales
 ```
 
 

@@ -526,8 +526,6 @@ labs(title = "Valor de señal mínimo detectado") +
   ylab("Num registros en la base de datos")+
   scale_x_continuous(breaks = seq(-125,0,by=5))+
   scale_y_continuous(breaks = seq(0,600,by=50))
-
-sort(TrainingDataCleaned$MaxSenal )
 ```
 
 Observamos que la máxima señal detectada que se repita más veces es para unos valores de intensidad de -58 y -61 dBm.
