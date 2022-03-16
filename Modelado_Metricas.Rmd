@@ -19,8 +19,10 @@ library(kableExtra)
 
 library(ggplot2)
 library(plotly)
+library(scales)
 
 library(caret)
+load("Data_UJIndoorLoc/TrainingDataCleaned.RData")
 ```
 
 
@@ -80,16 +82,16 @@ Tomaremos una partición de 80% 20% para datos de entrenamiento y testeo
 Targets <- TrainingDataCleaned[,c(1:390,394,395,396) ]
 set.seed(17)
 indicesEntrenamiento <- 
-  createDataPartition(TrainingDataCleaned$BUILDINGID,
+  createDataPartition(Targets$BUILDINGID,
                       p = .8, list = FALSE)
-DatosEntreamiento <- TrainingDataCleaned[indicesEntrenamiento,]
-DatosTesteo <-TrainingDataCleaned[-indicesEntrenamiento,]
+DatosEntreamiento <- Targets[indicesEntrenamiento,]
+DatosTesteo <-Targets[-indicesEntrenamiento,]
 
 set.seed(17)
 indicesValidacion <- createDataPartition(DatosEntreamiento$BUILDINGID,
                       p = .8, list = FALSE)
-DatosEntreamientoValidacion <- TrainingDataCleaned[indicesValidacion,]
-DatosTesteoValidacion <-TrainingDataCleaned[-indicesValidacion,]
+DatosEntreamientoValidacion <- Targets[indicesValidacion,]
+DatosTesteoValidacion <-Targets[-indicesValidacion,]
 # 91 Building ID
 # 92 Floor
 # 93 Space
@@ -115,7 +117,7 @@ En primer lugar, para la replicación de los resultados, usamos la función trai
 
 ```{r}
 # Para todos los modelos
-fitControl <- trainControl(method = "repeatedcv", number = 7, repeats = 1,
+fitControl <- trainControl(method = "repeatedcv", number = 5, repeats = 1,
                           # verboseIter =TRUE 
 )
 ```
@@ -139,40 +141,46 @@ Utilizaremos el algoritmo C5.0. Se trata de un algoritmo de clasificación, que 
 
 #### Hiperparametros del algoritmo C5.0
 
-- Número de intentos (tune length): 5
-- Validación cruzaza con 10 grupos y una repetición
+- Número de intentos (tune length): 3
+- Validación cruzaza con 5 grupos y una repetición
 
 #### Modelado
 
 
 ```{r}
+start <- Sys.time()
 set.seed(17)
-# modeloC5.0 <- train(BUILDINGID~., 
-#                 data = DatosEntreamientoValidacion[,-c(392,393)], 
-#                 method = "C5.0", 
-#                 trControl=fitControl, 
-#                 tuneLength = 5)
+modeloC5.0 <- train(BUILDINGID~., 
+                data = DatosEntreamientoValidacion[,-c(392,393)], 
+                method = "C5.0", 
+                trControl=fitControl, 
+                tuneLength = 3)
 # summary(modeloC5.0)
+Sys.time() - start
+```
+
+```{r}
+modeloC5.0
+```
+```{r}
+plot(modeloC5.0)
 ```
 
 
-
-Veamos la importancia de las variables en mi modelo:
 
 
 ```{r}
-# ImpC5.0<-varImp(modeloC5.0)
-# ImpC5.0
-# 
-# 
-# ggplot(ImpC5.0 ) +
-# geom_point( color="white", size=4, alpha=0.5)+
-#   scale_y_continuous(breaks = seq(0,100,by=10))+
-# xlab('Variable')+
-# ylab('Importancia')+
-# labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: # elaboración propia")+
-# theme_minimal()
+ImpC50<-varImp(modeloC5.0)
+ImpC50
+ggplot(ImpC50 ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo C5.0",caption = "Fuente: elaboración propia")+
+theme_minimal()
 ```
+
 
 
 ### Algoritmo 2: KNN
@@ -180,27 +188,32 @@ Veamos la importancia de las variables en mi modelo:
 
 #### Hiperparametros
 - Número de intentos (tune length): 3
-- Validación cruzaza con 10 grupos y una repetición
+- Validación cruzada con 5 grupos y una repetición
 - Prueba con k = 5,7,9 para obtener un k que optimice las métricas
 
 #### Modelado
 
 ```{r}
+start <- Sys.time()
 set.seed(17)
 KNNmodel <- train(BUILDINGID~., 
                  data = DatosEntreamientoValidacion[,-c(392,393)], 
                  method = "knn",
                  trControl=fitControl,
                  tuneLength = 3)
+Sys.time() - start
 KNNmodel 
 ```
 
+```{r}
+plot(KNNmodel)
+```
+
+
 
 ```{r}
-ImpKNN<-varImp(KNNmodel,k=35)
+ImpKNN<-varImp(KNNmodel,k=9)
 ImpKNN
-
-
 ggplot(ImpKNN ) +
 geom_point( color="white", size=4, alpha=0.5)+
   scale_y_continuous(breaks = seq(0,100,by=10))+
@@ -209,3 +222,361 @@ ylab('Importancia')+
 labs(title = "Importancia de las variables",subtitle = "Modelo KNN",caption = "Fuente: elaboración propia")+
 theme_minimal()
 ```
+
+
+
+
+
+
+### Algoritmo 3: SVM
+
+
+#### Hiperparametros
+
+- Número de intentos (tune length): 3
+- Validación cruzada con 7 grupos y una repetición
+- Malla para el valor de C (secuencia de 0-2 )
+
+#### Modelado
+
+```{r}
+start <- Sys.time()
+set.seed(17)
+SvmModel  <- train(BUILDINGID~., 
+                 data = DatosEntreamientoValidacion[,-c(392,393)], 
+                 method = "svmLinear",
+                 trControl=fitControl,
+                 tuneGrid = expand.grid(C = seq(0, 2, length = 20) ) )
+
+
+Sys.time() - start
+SvmModel
+```
+
+```{r}
+plot(SvmModel)
+```
+
+
+
+```{r}
+ImpSvm<-varImp(SvmModel)
+ImpSvm
+ggplot(ImpSvm ) +
+geom_point( color="white", size=4, alpha=0.5)+
+  scale_y_continuous(breaks = seq(0,100,by=10))+
+xlab('Variable')+
+ylab('Importancia')+
+labs(title = "Importancia de las variables",subtitle = "Modelo SVM",caption = "Fuente: elaboración propia")+
+theme_minimal()
+
+
+
+```
+
+
+
+
+
+### Validacion
+
+Ahora clasificaremos el ID del edificio con estos modelos sobre los datos de testeo validación, para ver con cuales obtengo mejores métricas, obteniendo así un modelo óptimo para realizar predicicones sobre mis nuevos datos.
+
+
+#### Algoritmo 1: C5.0
+
+Los hiperpárametros del mejor modelo eran
+
+
+```{r}
+modeloC5.0$bestTune
+```
+
+Modelamos con esta configuración.
+
+
+
+
+```{r}
+start <- Sys.time()
+
+C5.0Grid <- expand.grid(model = "rules" , winnow = "FALSE" , trials = 20 )  
+set.seed(17)
+Mejor_modeloC5.0 <- train(BUILDINGID~., 
+                data =  DatosEntreamientoValidacion[,-c(392,393)],
+                method = "C5.0", 
+                trControl=fitControl, 
+                tuneGrid = C5.0Grid)
+# summary(modeloC5.0)
+Sys.time() - start
+```
+
+
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+```{r}
+Pred_Val_C5.0 <- predict (Mejor_modeloC5.0 , newdata =DatosTesteoValidacion[,-c(392,393)] )
+
+
+Confu_C5.0 <- confusionMatrix(Pred_Val_C5.0 , DatosTesteoValidacion$BUILDINGID)
+Confu_C5.0
+
+```
+
+
+
+
+
+Métricas:
+
+- Precisión: `r Confu_C5.0$overall[1]`, con el siguiente IC (`r Confu_C5.0$overall[3]`,`r Confu_C5.0$overall[4]`)
+- Valor Kappa: `r Confu_C5.0$overall[2]`
+
+
+
+#### Algoritmo 2: KNN
+
+Los hiperparámetros del mejor modelo eran
+
+```{r}
+KNNmodel$bestTune
+```
+
+
+Modelamos con esta información
+
+
+```{r}
+start <- Sys.time()
+
+KNNGrid <- expand.grid(k=9 )  
+set.seed(17)
+Mejor_modeloKNN <- train(BUILDINGID~., 
+                data =  DatosEntreamientoValidacion[,-c(392,393)],
+                method = "knn",
+                trControl=fitControl, 
+                tuneGrid = KNNGrid )
+# summary(modeloC5.0)
+Sys.time() - start
+```
+
+
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+```{r}
+Pred_Val_KNN <- predict (Mejor_modeloKNN , newdata =DatosTesteoValidacion[,-c(392,393)] )
+
+
+Confu_KNN <- confusionMatrix(Pred_Val_KNN , DatosTesteoValidacion$BUILDINGID)
+Confu_KNN
+
+```
+
+
+
+
+
+Métricas:
+
+- Precisión: `r Confu_KNN$overall[1]`, con el siguiente IC (`r Confu_KNN$overall[3]`,`r Confu_KNN$overall[4]`)
+- Valor Kappa: `r Confu_KNN$overall[2]`
+
+#### Algoritmo 3: SVM
+
+Los hiperparámetros del mejor modelo eran
+
+
+```{r}
+SvmModel$bestTune
+```
+
+
+
+Modelamos con esta información.
+
+
+
+```{r}
+start <- Sys.time()
+
+SvmGrid <- expand.grid(C=0.1052632	 )  
+set.seed(17)
+Mejor_SvmModel  <- train(BUILDINGID~., 
+                 data = DatosEntreamientoValidacion[,-c(392,393)], 
+                 method = "svmLinear",
+                 trControl=fitControl,
+                 tuneGrid = SvmGrid )
+
+
+Sys.time() - start
+```
+
+
+##### Predicciones y evaluación del rendimiento en datos de validación
+
+
+
+
+```{r}
+Pred_Val_SVM <- predict (Mejor_SvmModel , newdata =DatosTesteoValidacion[,-c(392,393)] )
+
+
+Confu_SVM <- confusionMatrix(Pred_Val_SVM , DatosTesteoValidacion$BUILDINGID)
+Confu_SVM
+
+```
+
+
+
+
+
+Métricas:
+
+- Precisión: `r Confu_SVM$overall[1]`, con el siguiente IC (`r Confu_SVM$overall[3]`,`r Confu_SVM$overall[4]`)
+- Valor Kappa: `r Confu_SVM$overall[2]`
+
+
+
+
+
+#### Comparación de las métricas según los diferentes modelos
+
+Las métricas obtenidas son las siguientes:
+
+```{r}
+data.frame(
+  'Modelo'=c("C5.0","KNN","SVM"),
+  'Precisión'=c(Confu_C5.0$overall[1],
+                Confu_KNN$overall[1] ,
+                Confu_SVM$overall[1] ),
+  'Kappa'=c(Confu_C5.0$overall[2],
+            Confu_KNN$overall[2], 
+            Confu_SVM$overall[2] )
+  ) %>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+Con los tres modelos se obtienen métricas excelentes ¿overfitting?
+
+
+Vamos a ver las matrices de confusión de los diferentes modelos
+
+
+
+```{r}
+
+
+ggplotConfusionMatrix <- function(m){
+  mytitle <- paste("Accuracy", percent_format()(m$overall[1]),
+                   "Kappa", percent_format()(m$overall[2]))
+  p <-
+    ggplot(data = as.data.frame(m$table) ,
+           aes(x = Reference, y = Prediction)) +
+    geom_tile(aes(fill = log(Freq)), colour = "white") +
+    scale_fill_gradient(low = "white", high = "steelblue") +
+    geom_text(aes(x = Reference, y = Prediction, label = Freq)) +
+    theme(legend.position = "none") +
+    ggtitle(mytitle)
+  return(p)
+}
+
+
+
+```
+
+
+```{r}
+cat("Matriz de confusión del modelo C5.0")
+ggplotConfusionMatrix(Confu_C5.0)
+
+cat("Matriz de confusión del modelo KNN")
+ggplotConfusionMatrix(Confu_KNN)
+
+cat("Matriz de confusión del modelo SVM")
+ggplotConfusionMatrix(Confu_SVM)
+
+```
+
+
+Comentarios:
+
+- C5.0: El modelo ha clasificado dos veces un registro como tomado en el edificio 0 cuando en realidad era en el edificio 2
+
+- KNN: Aquí ha ocurrido lo mismo que en el modelo C5.0, pero además, se ha clasificado un registro en el edificio 2 siendo del 1 y 3 como del edificio 1 siendo del 2
+
+- SVM: Todo perfecto
+
+
+El resto de métricas:
+
+```{r}
+Confu_C5.0$byClass%>% kable(booktabs=TRUE , caption = "Modelo C5.0") %>% kable_styling(latex_options = "striped")
+Confu_KNN$byClass%>% kable(booktabs=TRUE , caption = "Modelo KNN") %>% kable_styling(latex_options = "striped")
+Confu_SVM$byClass %>% kable(booktabs=TRUE , caption = "Modelo SVM") %>% kable_styling(latex_options = "striped")
+```
+
+
+
+
+
+
+
+
+
+
+### Testeo del modelo final: SVM
+
+### Testeo 
+
+Prediciones para datosTest
+
+
+```{r}
+PredTestSVM <- predict(Mejor_SvmModel , newdata = DatosTesteo)
+
+confu_SVM_Test <- confusionMatrix(PredTestSVM,DatosTesteo$BUILDINGID)
+confu_SVM_Test
+```
+
+
+
+Métricas:
+
+- Precisión: `r confu_SVM_Test$overall[1]`, con el siguiente IC (`r confu_SVM_Test$overall[3]`,`r confu_SVM_Test$overall[4]`)
+- Valor Kappa: `r confu_SVM_Test$overall[2]`
+
+
+```{r}
+confu_SVM_Test$byClass%>% kable(booktabs=TRUE) %>% kable_styling(latex_options = "striped")
+```
+
+
+
+### Análisis de error
+
+
+```{r}
+ggplotConfusionMatrix(confu_SVM_Test)
+```
+Se han clasificado bien todos los registros
+
+
+
+
+```{r}
+postResample(pred=PredTestSVM, obs=DatosTesteo$BUILDINGID)
+```
+
+
+
+
+
+
+
+
+
+
+
+### Predición de BuildingID en el dataset
+
+
+
